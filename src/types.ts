@@ -11,6 +11,7 @@ export interface User {
   email: string;
   level: Level;
   department: string;
+  password?: string;
 }
 
 export interface Course {
@@ -19,8 +20,9 @@ export interface Course {
   title: string;
   department: string;
   level: Level;
-  college?: string; // e.g. "College of Sciences", "College of Engineering", etc.
-  units?: number; // e.g. 2, 3, 4
+  college?: string;
+  units?: number;
+  programs?: string[];
 }
 
 export interface Material {
@@ -44,6 +46,7 @@ export interface Question {
 }
 
 export interface Progress {
+  id?: string;
   userId: string;
   courseId: string;
   tier: Tier;

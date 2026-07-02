@@ -122,28 +122,28 @@ app.use(async (req, res, next) => {
 // --- API ROUTES ---
 
 // 1. Auth Helper Routes
-app.post("/api/auth/login", (req, res) => {
+app.post("/api/auth/login", async (req, res) => {
   const { email } = req.body;
   if (!email) {
     return res.status(400).json({ error: "Email is required" });
   }
-  const user = db.getUserByEmail(email);
+  const user = await db.getUserByEmail(email);
   if (!user) {
     return res.status(404).json({ error: "User not found" });
   }
   return res.json(user);
 });
 
-app.post("/api/auth/register", (req, res) => {
+app.post("/api/auth/register", async (req, res) => {
   const { name, email, level, department, role } = req.body;
   if (!name || !email || !level || !department) {
     return res.status(400).json({ error: "All fields are required" });
   }
-  const existing = db.getUserByEmail(email);
+  const existing = await db.getUserByEmail(email);
   if (existing) {
     return res.json(existing);
   }
-  const newUser = db.addUser({
+  const newUser = await db.addUser({
     id: "user-" + Math.random().toString(36).substring(2, 9),
     role: role || "student",
     name,
@@ -154,8 +154,8 @@ app.post("/api/auth/register", (req, res) => {
   return res.json(newUser);
 });
 
-app.get("/api/users/:id", (req, res) => {
-  const user = db.getUserById(req.params.id);
+app.get("/api/users/:id", async (req, res) => {
+  const user = await db.getUserById(req.params.id);
   if (!user) {
     return res.status(404).json({ error: "User not found" });
   }
@@ -163,13 +163,13 @@ app.get("/api/users/:id", (req, res) => {
 });
 
 // 2. Admin Endpoints
-app.post("/api/admin/upload-material", (req, res) => {
+app.post("/api/admin/upload-material", async (req, res) => {
   const { courseId, fileName, fileUrl, fileType, week } = req.body;
   if (!courseId || !fileName || !fileUrl || !fileType) {
     return res.status(400).json({ error: "courseId, fileName, fileUrl, and fileType are required" });
   }
 
-  const newMaterial = db.addMaterial({
+  const newMaterial = await db.addMaterial({
     id: "mat-" + Math.random().toString(36).substring(2, 9),
     courseId,
     fileName,
@@ -181,7 +181,7 @@ app.post("/api/admin/upload-material", (req, res) => {
   return res.json({ success: true, material: newMaterial });
 });
 
-app.post("/api/admin/questions/bulk", (req, res) => {
+app.post("/api/admin/questions/bulk", async (req, res) => {
   const { courseId, tier, questions } = req.body;
   if (!courseId || !tier || !questions) {
     return res.status(400).json({ error: "courseId, tier, and questions array are required" });
@@ -213,7 +213,7 @@ app.post("/api/admin/questions/bulk", (req, res) => {
     tier,
   }));
 
-  db.saveQuestionsBulk(courseId, tier, processedQuestions);
+  await db.saveQuestionsBulk(courseId, tier, processedQuestions);
 
   return res.json({
     success: true,
@@ -222,9 +222,9 @@ app.post("/api/admin/questions/bulk", (req, res) => {
 });
 
 // 3. Student Endpoints
-app.get("/api/courses", (req, res) => {
+app.get("/api/courses", async (req, res) => {
   const { level, department, college } = req.query;
-  let courses = db.getCourses();
+  let courses = await db.getCourses();
 
   if (level) {
     courses = courses.filter((c) => c.level === level);
@@ -242,7 +242,7 @@ app.get("/api/courses", (req, res) => {
   return res.json(courses);
 });
 
-app.delete("/api/courses/:id", (req, res) => {
+app.delete("/api/courses/:id", async (req, res) => {
   const { id } = req.params;
   const { pin } = req.body;
 
@@ -250,17 +250,17 @@ app.delete("/api/courses/:id", (req, res) => {
     return res.status(400).json({ error: "Invalid Admin Security PIN" });
   }
 
-  const course = db.getCourseById(id);
+  const course = await db.getCourseById(id);
   if (!course) {
     return res.status(404).json({ error: "Course not found" });
   }
 
-  db.deleteCourse(id);
+  await db.deleteCourse(id);
   return res.json({ success: true, message: `Course ${course.code} deleted successfully.` });
 });
 
-app.get("/api/courses/:id", (req, res) => {
-  const course = db.getCourseById(req.params.id);
+app.get("/api/courses/:id", async (req, res) => {
+  const course = await db.getCourseById(req.params.id);
   if (!course) {
     return res.status(404).json({ error: "Course not found" });
   }
@@ -278,18 +278,18 @@ app.post("/api/courses/create", async (req, res) => {
     return res.status(403).json({ error: "Unauthorized: Administrator credentials are required to create courses." });
   }
 
-  const user = db.getUserById(userId);
+  const user = await db.getUserById(userId);
   if (!user || user.role !== "admin") {
     return res.status(403).json({ error: "Unauthorized: Only administrators can create courses." });
   }
 
-  const existing = db.getCourses().find((c) => c.code.toUpperCase() === code.toUpperCase());
+  const existing = (await db.getCourses()).find((c) => c.code.toUpperCase() === code.toUpperCase());
   if (existing) {
     return res.status(400).json({ error: `Course with code ${code.toUpperCase()} already exists.` });
   }
 
   const courseId = "course-" + Math.random().toString(36).substring(2, 9);
-  const newCourse = db.addCourse({
+  const newCourse = await db.addCourse({
     id: courseId,
     code: code.toUpperCase(),
     title,
@@ -303,28 +303,28 @@ app.post("/api/courses/create", async (req, res) => {
   const aiQuestions = await generateAiQuestionsForCourse(newCourse.code, newCourse.title, newCourse.level, "easy");
   if (aiQuestions.length === 50) {
     const finalized = aiQuestions.map(q => ({ ...q, courseId }));
-    db.saveQuestionsBulk(courseId, "easy", finalized);
+    await db.saveQuestionsBulk(courseId, "easy", finalized);
   }
 
   return res.json({ success: true, course: newCourse });
 });
 
-app.get("/api/courses/:id/materials", (req, res) => {
-  const materials = db.getMaterialsByCourseId(req.params.id);
+app.get("/api/courses/:id/materials", async (req, res) => {
+  const materials = await db.getMaterialsByCourseId(req.params.id);
   return res.json(materials);
 });
 
 app.get("/api/courses/:id/tiers/:tier/questions", async (req, res) => {
   const { id, tier } = req.params;
-  let questions = db.getQuestions(id, tier as Tier);
+  let questions = await db.getQuestions(id, tier as Tier);
   
   // If questions are generic placeholders and we have a valid key, try to generate real AI ones!
-  const course = db.getCourseById(id);
+  const course = await db.getCourseById(id);
   if (course && (questions.length === 0 || (questions.length > 0 && questions[0].questionText.includes("Foundational study question")))) {
     const aiQuestions = await generateAiQuestionsForCourse(course.code, course.title, course.level, tier as Tier);
     if (aiQuestions.length === 50) {
       const finalized = aiQuestions.map(q => ({ ...q, courseId: id }));
-      db.saveQuestionsBulk(id, tier as Tier, finalized);
+      await db.saveQuestionsBulk(id, tier as Tier, finalized);
       questions = finalized;
     }
   }
@@ -332,23 +332,23 @@ app.get("/api/courses/:id/tiers/:tier/questions", async (req, res) => {
   return res.json(questions);
 });
 
-app.get("/api/courses/:id/tiers/:tier/leaderboard", (req, res) => {
-  const leaderboard = db.getLeaderboard(req.params.id, req.params.tier as any);
+app.get("/api/courses/:id/tiers/:tier/leaderboard", async (req, res) => {
+  const leaderboard = await db.getLeaderboard(req.params.id, req.params.tier as any);
   return res.json(leaderboard);
 });
 
-app.get("/api/progress/:userId", (req, res) => {
-  const progress = db.getProgress(req.params.userId);
+app.get("/api/progress/:userId", async (req, res) => {
+  const progress = await db.getProgress(req.params.userId);
   return res.json(progress);
 });
 
-app.post("/api/progress/submit", (req, res) => {
+app.post("/api/progress/submit", async (req, res) => {
   const { userId, courseId, tier, answers } = req.body;
   if (!userId || !courseId || !tier || !Array.isArray(answers)) {
     return res.status(400).json({ error: "userId, courseId, tier, and answers array are required" });
   }
 
-  const questions = db.getQuestions(courseId, tier);
+  const questions = await db.getQuestions(courseId, tier);
   if (questions.length === 0) {
     return res.status(404).json({ error: "No questions found for this course and tier" });
   }
@@ -368,7 +368,7 @@ app.post("/api/progress/submit", (req, res) => {
   });
 
   const score = correctCount;
-  const dbResult = db.submitProgress(userId, courseId, tier, score);
+  const dbResult = await db.submitProgress(userId, courseId, tier, score);
 
   return res.json({
     userId,
@@ -384,36 +384,36 @@ app.post("/api/progress/submit", (req, res) => {
 });
 
 // 4. Study Plan Endpoints
-app.get("/api/study-plans/active", (req, res) => {
+app.get("/api/study-plans/active", async (req, res) => {
   const { userId, courseId, tier } = req.query;
   if (!userId || !courseId || !tier) {
     return res.status(400).json({ error: "userId, courseId, and tier are required" });
   }
-  const activePlan = db.getStudyPlan(userId as string, courseId as string, tier as Tier);
+  const activePlan = await db.getStudyPlan(userId as string, courseId as string, tier as Tier);
   return res.json({ activePlan: activePlan || null });
 });
 
-app.post("/api/study-plans/start", (req, res) => {
+app.post("/api/study-plans/start", async (req, res) => {
   const { userId, courseId, tier, planType } = req.body;
   if (!userId || !courseId || !tier || !planType) {
     return res.status(400).json({ error: "userId, courseId, tier, and planType are required" });
   }
   try {
-    const plan = db.createStudyPlan(userId, courseId, tier, planType);
+    const plan = await db.createStudyPlan(userId, courseId, tier, planType);
     return res.json(plan);
   } catch (error: any) {
     return res.status(500).json({ error: error.message || error });
   }
 });
 
-app.post("/api/study-plans/submit-day", (req, res) => {
+app.post("/api/study-plans/submit-day", async (req, res) => {
   const { userId, courseId, tier, day, answers } = req.body;
   if (!userId || !courseId || !tier || !day || !Array.isArray(answers)) {
     return res.status(400).json({ error: "userId, courseId, tier, day, and answers array are required" });
   }
 
   try {
-    const plan = db.getStudyPlan(userId, courseId, tier);
+    const plan = await db.getStudyPlan(userId, courseId, tier);
     if (!plan) {
       return res.status(404).json({ error: "No active study plan found for this course and tier" });
     }
@@ -424,7 +424,7 @@ app.post("/api/study-plans/submit-day", (req, res) => {
     }
 
     // Load question objects for the day
-    const allQuestions = db.getQuestions(courseId, tier);
+    const allQuestions = await db.getQuestions(courseId, tier);
     const dayQuestions = dayQuestionIds.map((id) => allQuestions.find((q) => q.id === id)).filter(Boolean) as Question[];
 
     let correctCount = 0;
@@ -457,7 +457,7 @@ app.post("/api/study-plans/submit-day", (req, res) => {
       };
     });
 
-    const { plan: updatedPlan, cumulativeScore, passed, unlockedNext, nextTier } = db.submitDayProgress(
+    const { plan: updatedPlan, cumulativeScore, passed, unlockedNext, nextTier } = await db.submitDayProgress(
       userId,
       courseId,
       tier,
@@ -486,12 +486,12 @@ app.post("/api/study-plans/submit-day", (req, res) => {
   }
 });
 
-app.post("/api/study-plans/reset", (req, res) => {
+app.post("/api/study-plans/reset", async (req, res) => {
   const { userId, courseId, tier } = req.body;
   if (!userId || !courseId || !tier) {
     return res.status(400).json({ error: "userId, courseId, and tier are required" });
   }
-  db.resetStudyPlan(userId, courseId, tier);
+  await db.resetStudyPlan(userId, courseId, tier);
   return res.json({ success: true });
 });
 
@@ -503,9 +503,9 @@ app.post("/api/ai/tutor", async (req, res) => {
   }
 
   try {
-    const course = db.getCourseById(courseId);
-    const user = db.getUserById(userId);
-    const materials = db.getMaterialsByCourseId(courseId);
+    const course = await db.getCourseById(courseId);
+    const user = await db.getUserById(userId);
+    const materials = await db.getMaterialsByCourseId(courseId);
 
     if (!course || !user) {
       return res.status(404).json({ error: "Course or User not found" });

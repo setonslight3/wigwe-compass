@@ -239,6 +239,43 @@ export class LocalDatabase {
     }
   }
 
+  private async supabaseRequest(table: string, method: string = "GET", queryParams?: string, body?: any): Promise<any> {
+    const supabaseUrl = process.env.SUPABASE_URL?.replace(/\/$/, "");
+    const supabaseKey = process.env.SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error("Supabase is not configured.");
+    }
+
+    if (typeof fetch === "undefined") {
+      throw new Error("global fetch is not defined in this Node.js runtime. Please upgrade your Vercel Node runtime to Node 18 or 20.");
+    }
+
+    const url = `${supabaseUrl}/rest/v1/${table}${queryParams ? `?${queryParams}` : ""}`;
+    const headers: Record<string, string> = {
+      "apikey": supabaseKey,
+      "Authorization": `Bearer ${supabaseKey}`,
+      "Content-Type": "application/json",
+    };
+
+    const res = await fetch(url, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error(`[Database] Supabase API Error: ${method} ${table} status ${res.status}:`, errText);
+      throw new Error(`Supabase API request failed: ${errText}`);
+    }
+
+    if (method === "GET") {
+      return await res.json();
+    }
+    return null;
+  }
+
   public async initialize(): Promise<void> {
     if (this.initialized) return;
     if (this.initPromise) return this.initPromise;
@@ -256,30 +293,19 @@ export class LocalDatabase {
     const supabaseKey = process.env.SUPABASE_ANON_KEY;
 
     if (supabaseUrl && supabaseKey) {
-      if (typeof fetch === "undefined") {
-        throw new Error("global fetch is not defined in this Node.js runtime. Please upgrade your Vercel Node runtime to Node 18 or 20.");
-      }
       try {
         console.log(`[Database] Connecting to Supabase at: ${supabaseUrl}`);
-        const res = await fetch(`${supabaseUrl}/rest/v1/compass_store?id=eq.1`, {
-          headers: {
-            "apikey": supabaseKey,
-            "Authorization": `Bearer ${supabaseKey}`
-          }
-        });
-        if (res.ok) {
-          const rows: any = await res.json();
-          if (rows && rows.length > 0) {
-            console.log("[Database] Loaded state successfully from Supabase.");
-            this.state = rows[0].state;
-            this.guaranteeInitializations();
-            return;
-          }
+        const users = await this.supabaseRequest("users");
+        if (users && users.length > 0) {
+          console.log("[Database] Loaded database state successfully from Supabase.");
+          return;
         }
-        console.warn("[Database] No state found in Supabase table. Initializing defaults...");
+        console.warn("[Database] No users found in Supabase. Initializing default schema seed...");
+        await this.seedDefaultsToSupabase();
       } catch (e: any) {
-        console.error("[Database] Error loading from Supabase:", e.message);
+        console.error("[Database] Error checking/seeding Supabase:", e.message);
       }
+      return;
     }
 
     // Local file fallback
@@ -330,62 +356,22 @@ export class LocalDatabase {
   }
 
   public save() {
-    // 1. Local saving
+    // Local saving
     try {
       fs.writeFileSync(DB_FILE, JSON.stringify(this.state, null, 2), "utf-8");
     } catch (e: any) {
       console.error("[Database] Local save warning:", e.message);
     }
-
-    // 2. Supabase saving (fire and forget)
-    const supabaseUrl = process.env.SUPABASE_URL?.replace(/\/$/, "");
-    const supabaseKey = process.env.SUPABASE_ANON_KEY;
-
-    if (supabaseUrl && supabaseKey) {
-      this.saveToSupabase(supabaseUrl, supabaseKey);
-    }
-  }
-
-  private async saveToSupabase(url: string, key: string) {
-    if (this.isSaving) {
-      this.pendingSave = true;
-      return;
-    }
-    this.isSaving = true;
-
-    try {
-      const res = await fetch(`${url}/rest/v1/compass_store?id=eq.1`, {
-        method: "PATCH",
-        headers: {
-          "apikey": key,
-          "Authorization": `Bearer ${key}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ state: this.state })
-      });
-      if (!res.ok) {
-        const errText = await res.text();
-        console.error("[Database] Supabase save failure status:", res.status, errText);
-      }
-    } catch (e: any) {
-      console.error("[Database] Supabase save error:", e.message);
-    } finally {
-      this.isSaving = false;
-      if (this.pendingSave) {
-        this.pendingSave = false;
-        this.saveToSupabase(url, key);
-      }
-    }
   }
 
   private seedDefaults() {
-    // Initial users (including an admin and a student)
     const seedUsers: User[] = [
       {
         id: "student1",
         role: "student",
         name: "Alex",
         email: "student@university.edu",
+        password: "password123",
         level: "400L",
         department: "BSc Computer Science"
       },
@@ -394,12 +380,12 @@ export class LocalDatabase {
         role: "admin",
         name: "Dr. Ojo",
         email: "admin@university.edu",
+        password: "password123",
         level: "500L",
         department: "BSc Computer Science"
       }
     ];
 
-    // Courses matching screenshots, level, colleges and units
     const seedCourses: Course[] = [
       {
         id: "course-csc401",
@@ -439,7 +425,6 @@ export class LocalDatabase {
       }
     ];
 
-    // Seed materials
     const seedMaterials: Material[] = [
       {
         id: "mat1",
@@ -478,99 +463,21 @@ export class LocalDatabase {
       }
     ];
 
-    // Seed initial progress for "student1" (Alex)
     const seedProgress: Progress[] = [
-      // ECO401: Easy completed, Medium locked, Hard locked
-      {
-        userId: "student1",
-        courseId: "course-eco401",
-        tier: "easy",
-        score: 41, // 82%
-        status: "completed"
-      },
-      {
-        userId: "student1",
-        courseId: "course-eco401",
-        tier: "medium",
-        score: 0,
-        status: "locked"
-      },
-      {
-        userId: "student1",
-        courseId: "course-eco401",
-        tier: "hard",
-        score: 0,
-        status: "locked"
-      },
-      // CSC402: Easy unlocked (75%), overall 75%
-      {
-        userId: "student1",
-        courseId: "course-csc402",
-        tier: "easy",
-        score: 38, // 76%
-        status: "completed"
-      },
-      {
-        userId: "student1",
-        courseId: "course-csc402",
-        tier: "medium",
-        score: 0,
-        status: "unlocked"
-      },
-      {
-        userId: "student1",
-        courseId: "course-csc402",
-        tier: "hard",
-        score: 0,
-        status: "locked"
-      },
-      // CSC401: Easy unlocked
-      {
-        userId: "student1",
-        courseId: "course-csc401",
-        tier: "easy",
-        score: 0,
-        status: "unlocked"
-      },
-      {
-        userId: "student1",
-        courseId: "course-csc401",
-        tier: "medium",
-        score: 0,
-        status: "locked"
-      },
-      {
-        userId: "student1",
-        courseId: "course-csc401",
-        tier: "hard",
-        score: 0,
-        status: "locked"
-      },
-      // BIO405: Easy unlocked
-      {
-        userId: "student1",
-        courseId: "course-bio405",
-        tier: "easy",
-        score: 0,
-        status: "unlocked"
-      },
-      {
-        userId: "student1",
-        courseId: "course-bio405",
-        tier: "medium",
-        score: 0,
-        status: "locked"
-      },
-      {
-        userId: "student1",
-        courseId: "course-bio405",
-        tier: "hard",
-        score: 0,
-        status: "locked"
-      },
+      { userId: "student1", courseId: "course-eco401", tier: "easy", score: 41, status: "completed" },
+      { userId: "student1", courseId: "course-eco401", tier: "medium", score: 0, status: "locked" },
+      { userId: "student1", courseId: "course-eco401", tier: "hard", score: 0, status: "locked" },
+      { userId: "student1", courseId: "course-csc402", tier: "easy", score: 38, status: "completed" },
+      { userId: "student1", courseId: "course-csc402", tier: "medium", score: 0, status: "unlocked" },
+      { userId: "student1", courseId: "course-csc402", tier: "hard", score: 0, status: "locked" },
+      { userId: "student1", courseId: "course-csc401", tier: "easy", score: 0, status: "unlocked" },
+      { userId: "student1", courseId: "course-csc401", tier: "medium", score: 0, status: "locked" },
+      { userId: "student1", courseId: "course-csc401", tier: "hard", score: 0, status: "locked" },
+      { userId: "student1", courseId: "course-bio405", tier: "easy", score: 0, status: "unlocked" },
+      { userId: "student1", courseId: "course-bio405", tier: "medium", score: 0, status: "locked" },
+      { userId: "student1", courseId: "course-bio405", tier: "hard", score: 0, status: "locked" },
     ];
 
-    // Seed questions for all courses and tiers (guaranteeing exactly 50 per tier)
     const seedQuestions: Question[] = [];
     for (const course of seedCourses) {
       for (const tier of ["easy", "medium", "hard"] as Tier[]) {
@@ -589,37 +496,195 @@ export class LocalDatabase {
     };
   }
 
+  private async seedDefaultsToSupabase() {
+    const seedUsers: User[] = [
+      {
+        id: "student1",
+        role: "student",
+        name: "Alex",
+        email: "student@university.edu",
+        password: "password123",
+        level: "400L",
+        department: "BSc Computer Science"
+      },
+      {
+        id: "admin1",
+        role: "admin",
+        name: "Dr. Ojo",
+        email: "admin@university.edu",
+        password: "password123",
+        level: "500L",
+        department: "BSc Computer Science"
+      }
+    ];
+    await this.supabaseRequest("users", "POST", undefined, seedUsers);
+
+    const seedCourses: Course[] = [
+      {
+        id: "course-csc401",
+        code: "CSC401",
+        title: "Advanced Algorithms",
+        department: "BSc Computer Science",
+        level: "400L",
+        college: "Science and Computing",
+        units: 3
+      },
+      {
+        id: "course-csc402",
+        code: "CSC402",
+        title: "UI/UX Design Systems",
+        department: "BSc Computer Science",
+        level: "400L",
+        college: "Science and Computing",
+        units: 3
+      },
+      {
+        id: "course-eco401",
+        code: "ECO401",
+        title: "Advanced Macroeconomics",
+        department: "BSc Economics",
+        level: "400L",
+        college: "Management and Social Sciences",
+        units: 4
+      },
+      {
+        id: "course-bio405",
+        code: "BIO405",
+        title: "Neural Pathways",
+        department: "BSc Robotics (Artificial Intelligence)",
+        level: "400L",
+        college: "Science and Computing",
+        units: 2
+      }
+    ];
+    await this.supabaseRequest("courses", "POST", undefined, seedCourses);
+
+    const seedMaterials: Material[] = [
+      {
+        id: "mat1",
+        courseId: "course-eco401",
+        fileName: "Fiscal Policy Framework.pdf",
+        fileUrl: "https://pdf-viewer-link.edu/fiscal_policy.pdf",
+        fileType: "pdf"
+      },
+      {
+        id: "mat2",
+        courseId: "course-eco401",
+        fileName: "Lecture Slides - Week 4.ppt",
+        fileUrl: "https://slides-link.edu/eco401_slides_w4.ppt",
+        fileType: "ppt"
+      },
+      {
+        id: "mat3",
+        courseId: "course-eco401",
+        fileName: "Data Set: Regional Growth.pdf",
+        fileUrl: "https://pdf-viewer-link.edu/regional_growth_data.pdf",
+        fileType: "pdf"
+      },
+      {
+        id: "mat4",
+        courseId: "course-csc402",
+        fileName: "UI_UX_Design_Systems_Intro.pdf",
+        fileUrl: "https://pdf-viewer-link.edu/uiux_design_systems.pdf",
+        fileType: "pdf"
+      },
+      {
+        id: "mat5",
+        courseId: "course-csc401",
+        fileName: "Dynamic Programming Guide.pdf",
+        fileUrl: "https://pdf-viewer-link.edu/dynamic_programming.pdf",
+        fileType: "pdf"
+      }
+    ];
+    await this.supabaseRequest("materials", "POST", undefined, seedMaterials);
+
+    const seedProgress: Progress[] = [
+      { id: "prog-eco401-easy", userId: "student1", courseId: "course-eco401", tier: "easy", score: 41, status: "completed" },
+      { id: "prog-eco401-medium", userId: "student1", courseId: "course-eco401", tier: "medium", score: 0, status: "locked" },
+      { id: "prog-eco401-hard", userId: "student1", courseId: "course-eco401", tier: "hard", score: 0, status: "locked" },
+      { id: "prog-csc402-easy", userId: "student1", courseId: "course-csc402", tier: "easy", score: 38, status: "completed" },
+      { id: "prog-csc402-medium", userId: "student1", courseId: "course-csc402", tier: "medium", score: 0, status: "unlocked" },
+      { id: "prog-csc402-hard", userId: "student1", courseId: "course-csc402", tier: "hard", score: 0, status: "locked" },
+      { id: "prog-csc401-easy", userId: "student1", courseId: "course-csc401", tier: "easy", score: 0, status: "unlocked" },
+      { id: "prog-csc401-medium", userId: "student1", courseId: "course-csc401", tier: "medium", score: 0, status: "locked" },
+      { id: "prog-csc401-hard", userId: "student1", courseId: "course-csc401", tier: "hard", score: 0, status: "locked" },
+      { id: "prog-bio405-easy", userId: "student1", courseId: "course-bio405", tier: "easy", score: 0, status: "unlocked" },
+      { id: "prog-bio405-medium", userId: "student1", courseId: "course-bio405", tier: "medium", score: 0, status: "locked" },
+      { id: "prog-bio405-hard", userId: "student1", courseId: "course-bio405", tier: "hard", score: 0, status: "locked" },
+    ];
+    await this.supabaseRequest("progress", "POST", undefined, seedProgress);
+
+    const seedQuestions: Question[] = [];
+    for (const course of seedCourses) {
+      for (const tier of ["easy", "medium", "hard"] as Tier[]) {
+        const generated = generateSeedQuestions(course.id, tier, course.code, course.title);
+        seedQuestions.push(...generated);
+      }
+    }
+    const chunkSize = 100;
+    for (let i = 0; i < seedQuestions.length; i += chunkSize) {
+      const chunk = seedQuestions.slice(i, i + chunkSize);
+      await this.supabaseRequest("questions", "POST", undefined, chunk);
+    }
+  }
+
   // --- API Methods ---
 
-  public getUsers(): User[] {
+  public async getUsers(): Promise<User[]> {
+    if (process.env.SUPABASE_URL) {
+      return await this.supabaseRequest("users");
+    }
     return this.state.users;
   }
 
-  public getUserByEmail(email: string): User | undefined {
+  public async getUserByEmail(email: string): Promise<User | undefined> {
+    if (process.env.SUPABASE_URL) {
+      const rows = await this.supabaseRequest("users", "GET", `email=ilike.${encodeURIComponent(email)}`);
+      return rows[0];
+    }
     return this.state.users.find((u) => u.email.toLowerCase() === email.toLowerCase());
   }
 
-  public getUserById(id: string): User | undefined {
+  public async getUserById(id: string): Promise<User | undefined> {
+    if (process.env.SUPABASE_URL) {
+      const rows = await this.supabaseRequest("users", "GET", `id=eq.${encodeURIComponent(id)}`);
+      return rows[0];
+    }
     return this.state.users.find((u) => u.id === id);
   }
 
-  public addUser(user: User): User {
+  public async addUser(user: User): Promise<User> {
+    if (process.env.SUPABASE_URL) {
+      await this.supabaseRequest("users", "POST", undefined, user);
+      return user;
+    }
     this.state.users.push(user);
     this.save();
     return user;
   }
 
-  public getCourses(): Course[] {
+  public async getCourses(): Promise<Course[]> {
+    if (process.env.SUPABASE_URL) {
+      return await this.supabaseRequest("courses");
+    }
     return this.state.courses;
   }
 
-  public addCourse(course: Course): Course {
+  public async addCourse(course: Course): Promise<Course> {
+    if (process.env.SUPABASE_URL) {
+      await this.supabaseRequest("courses", "POST", undefined, course);
+      return course;
+    }
     this.state.courses.push(course);
     this.save();
     return course;
   }
 
-  public deleteCourse(id: string): void {
+  public async deleteCourse(id: string): Promise<void> {
+    if (process.env.SUPABASE_URL) {
+      await this.supabaseRequest("courses", "DELETE", `id=eq.${encodeURIComponent(id)}`);
+      return;
+    }
     this.state.courses = this.state.courses.filter((c) => c.id !== id);
     this.state.materials = this.state.materials.filter((m) => m.courseId !== id);
     this.state.questions = this.state.questions.filter((q) => q.courseId !== id);
@@ -628,25 +693,52 @@ export class LocalDatabase {
     this.save();
   }
 
-  public getCourseById(id: string): Course | undefined {
+  public async getCourseById(id: string): Promise<Course | undefined> {
+    if (process.env.SUPABASE_URL) {
+      const rows = await this.supabaseRequest("courses", "GET", `id=eq.${encodeURIComponent(id)}`);
+      return rows[0];
+    }
     return this.state.courses.find((c) => c.id === id);
   }
 
-  public getMaterialsByCourseId(courseId: string): Material[] {
+  public async getMaterialsByCourseId(courseId: string): Promise<Material[]> {
+    if (process.env.SUPABASE_URL) {
+      return await this.supabaseRequest("materials", "GET", `courseId=eq.${encodeURIComponent(courseId)}`);
+    }
     return this.state.materials.filter((m) => m.courseId === courseId);
   }
 
-  public addMaterial(material: Material): Material {
+  public async addMaterial(material: Material): Promise<Material> {
+    if (process.env.SUPABASE_URL) {
+      await this.supabaseRequest("materials", "POST", undefined, material);
+      return material;
+    }
     this.state.materials.push(material);
     this.save();
     return material;
   }
 
-  public getQuestions(courseId: string, tier: Tier): Question[] {
+  public async getQuestions(courseId: string, tier: Tier): Promise<Question[]> {
+    if (process.env.SUPABASE_URL) {
+      const qList = await this.supabaseRequest("questions", "GET", `courseId=eq.${encodeURIComponent(courseId)}&tier=eq.${encodeURIComponent(tier)}`);
+      if (qList.length === 0) {
+        const course = await this.getCourseById(courseId);
+        if (course) {
+          const generated = generateSeedQuestions(courseId, tier, course.code, course.title);
+          const chunkSize = 100;
+          for (let i = 0; i < generated.length; i += chunkSize) {
+            const chunk = generated.slice(i, i + chunkSize);
+            await this.supabaseRequest("questions", "POST", undefined, chunk);
+          }
+          return generated;
+        }
+      }
+      return qList;
+    }
+
     const qList = this.state.questions.filter((q) => q.courseId === courseId && q.tier === tier);
     if (qList.length === 0) {
-      // Generate default 50 questions if they don't exist
-      const course = this.getCourseById(courseId);
+      const course = await this.getCourseById(courseId);
       if (course) {
         const generated = generateSeedQuestions(courseId, tier, course.code, course.title);
         this.state.questions.push(...generated);
@@ -657,18 +749,43 @@ export class LocalDatabase {
     return qList;
   }
 
-  public saveQuestionsBulk(courseId: string, tier: Tier, questions: Question[]): void {
-    // Remove existing questions for this Course+Tier
+  public async saveQuestionsBulk(courseId: string, tier: Tier, questions: Question[]): Promise<void> {
+    if (process.env.SUPABASE_URL) {
+      await this.supabaseRequest("questions", "DELETE", `courseId=eq.${encodeURIComponent(courseId)}&tier=eq.${encodeURIComponent(tier)}`);
+      const chunkSize = 100;
+      for (let i = 0; i < questions.length; i += chunkSize) {
+        const chunk = questions.slice(i, i + chunkSize);
+        await this.supabaseRequest("questions", "POST", undefined, chunk);
+      }
+      return;
+    }
+
     this.state.questions = this.state.questions.filter(
       (q) => !(q.courseId === courseId && q.tier === tier)
     );
-    // Add new ones
     this.state.questions.push(...questions);
     this.save();
   }
 
-  public getProgress(userId: string): Progress[] {
-    // If no progress exists for this student, initialize it with all course easy tiers unlocked
+  public async getProgress(userId: string): Promise<Progress[]> {
+    if (process.env.SUPABASE_URL) {
+      const userProgress = await this.supabaseRequest("progress", "GET", `userId=eq.${encodeURIComponent(userId)}`);
+      if (userProgress.length === 0) {
+        const courses = await this.getCourses();
+        const initialProgress: Progress[] = [];
+        for (const course of courses) {
+          initialProgress.push(
+            { id: `prog-${course.id}-easy`, userId, courseId: course.id, tier: "easy", score: 0, status: "unlocked" },
+            { id: `prog-${course.id}-medium`, userId, courseId: course.id, tier: "medium", score: 0, status: "locked" },
+            { id: `prog-${course.id}-hard`, userId, courseId: course.id, tier: "hard", score: 0, status: "locked" }
+          );
+        }
+        await this.supabaseRequest("progress", "POST", undefined, initialProgress);
+        return initialProgress;
+      }
+      return userProgress;
+    }
+
     const userProgress = this.state.progress.filter((p) => p.userId === userId);
     if (userProgress.length === 0) {
       const initialProgress: Progress[] = [];
@@ -686,16 +803,72 @@ export class LocalDatabase {
     return userProgress;
   }
 
-  public submitProgress(
+  public async submitProgress(
     userId: string,
     courseId: string,
     tier: Tier,
     score: number
-  ): { score: number; unlockedNext: boolean; nextTier: Tier | null } {
-    // Get all progress for this user
-    this.getProgress(userId);
+  ): Promise<{ score: number; unlockedNext: boolean; nextTier: Tier | null }> {
+    if (process.env.SUPABASE_URL) {
+      const progressList = await this.getProgress(userId);
+      let currentEntry = progressList.find(
+        (p) => p.userId === userId && p.courseId === courseId && p.tier === tier
+      );
 
-    // Find the current progress entry
+      if (!currentEntry) {
+        currentEntry = {
+          id: `prog-${courseId}-${tier}`,
+          userId,
+          courseId,
+          tier,
+          score,
+          status: score >= 35 ? "completed" : "unlocked"
+        };
+        await this.supabaseRequest("progress", "POST", undefined, currentEntry);
+      } else {
+        currentEntry.score = Math.max(currentEntry.score, score);
+        if (score >= 35) {
+          currentEntry.status = "completed";
+        }
+        await this.supabaseRequest("progress", "PATCH", `id=eq.${currentEntry.id}`, {
+          score: currentEntry.score,
+          status: currentEntry.status
+        });
+      }
+
+      let unlockedNext = false;
+      let nextTier: Tier | null = null;
+
+      if (score >= 35) {
+        if (tier === "easy") nextTier = "medium";
+        else if (tier === "medium") nextTier = "hard";
+
+        if (nextTier) {
+          let nextEntry = progressList.find(
+            (p) => p.userId === userId && p.courseId === courseId && p.tier === nextTier
+          );
+          if (!nextEntry) {
+            nextEntry = {
+              id: `prog-${courseId}-${nextTier}`,
+              userId,
+              courseId,
+              tier: nextTier,
+              score: 0,
+              status: "unlocked"
+            };
+            await this.supabaseRequest("progress", "POST", undefined, nextEntry);
+            unlockedNext = true;
+          } else if (nextEntry.status === "locked") {
+            nextEntry.status = "unlocked";
+            await this.supabaseRequest("progress", "PATCH", `id=eq.${nextEntry.id}`, { status: "unlocked" });
+            unlockedNext = true;
+          }
+        }
+      }
+      return { score, unlockedNext, nextTier };
+    }
+
+    this.getProgress(userId);
     let currentEntry = this.state.progress.find(
       (p) => p.userId === userId && p.courseId === courseId && p.tier === tier
     );
@@ -719,8 +892,7 @@ export class LocalDatabase {
     let unlockedNext = false;
     let nextTier: Tier | null = null;
 
-    // GLOBAL RULE: If score >= 70% (which is >= 35 correct answers out of 50), unlock the next tier
-    if (score >= 35) { // 35 / 50 = 70%
+    if (score >= 35) {
       if (tier === "easy") {
         nextTier = "medium";
       } else if (tier === "medium") {
@@ -752,23 +924,28 @@ export class LocalDatabase {
     return { score, unlockedNext, nextTier };
   }
 
-  public getLeaderboard(courseId: string, tier: Tier) {
-    const matchingProgress = this.state.progress.filter(
-      (p) => p.courseId === courseId && p.tier === tier && p.score > 0
-    );
+  public async getLeaderboard(courseId: string, tier: Tier) {
+    let matchingProgress: Progress[] = [];
+    if (process.env.SUPABASE_URL) {
+      matchingProgress = await this.supabaseRequest("progress", "GET", `courseId=eq.${encodeURIComponent(courseId)}&tier=eq.${encodeURIComponent(tier)}&score=gt.0`);
+    } else {
+      matchingProgress = this.state.progress.filter(
+        (p) => p.courseId === courseId && p.tier === tier && p.score > 0
+      );
+    }
 
-    const results = matchingProgress.map((p) => {
-      const user = this.getUserById(p.userId);
-      return {
+    const results = [];
+    for (const p of matchingProgress) {
+      const user = await this.getUserById(p.userId);
+      results.push({
         userId: p.userId,
         name: user ? user.name : "Anonymous Student",
         department: user ? user.department : "Computer Science",
         level: user ? user.level : "400L",
         score: p.score,
-      };
-    });
+      });
+    }
 
-    // Merge with preset competitors to encourage a competitive atmosphere
     const competitors = [
       { name: "Chidi Nwachukwu", department: "Computer Science", level: "400L", baseScore: 47 },
       { name: "Zainab Abubakar", department: "Computer Science", level: "400L", baseScore: 44 },
@@ -789,44 +966,37 @@ export class LocalDatabase {
       }
     });
 
-    // Sort descending by score
     results.sort((a, b) => b.score - a.score);
-
-    // Limit to top 5
     return results.slice(0, 5);
   }
 
-  // --- Study Plan Methods ---
-
-  public getStudyPlans(): StudyPlan[] {
+  public async getStudyPlans(): Promise<StudyPlan[]> {
+    if (process.env.SUPABASE_URL) {
+      return await this.supabaseRequest("study_plans");
+    }
     this.state.studyPlans = this.state.studyPlans || [];
     return this.state.studyPlans;
   }
 
-  public getStudyPlan(userId: string, courseId: string, tier: Tier): StudyPlan | undefined {
-    this.getStudyPlans();
+  public async getStudyPlan(userId: string, courseId: string, tier: Tier): Promise<StudyPlan | undefined> {
+    if (process.env.SUPABASE_URL) {
+      const rows = await this.supabaseRequest("study_plans", "GET", `userId=eq.${encodeURIComponent(userId)}&courseId=eq.${encodeURIComponent(courseId)}&tier=eq.${encodeURIComponent(tier)}&status=eq.active`);
+      return rows[0];
+    }
+    await this.getStudyPlans();
     return this.state.studyPlans.find(
       (sp) => sp.userId === userId && sp.courseId === courseId && sp.tier === tier && sp.status === "active"
     );
   }
 
-  public createStudyPlan(
+  public async createStudyPlan(
     userId: string,
     courseId: string,
     tier: Tier,
     planType: "blitz" | "sprint" | "three-day" | "weekly"
-  ): StudyPlan {
-    this.getStudyPlans();
-    
-    // Deactivate any existing active plan for this user + course + tier
-    this.state.studyPlans = this.state.studyPlans.filter(
-      (sp) => !(sp.userId === userId && sp.courseId === courseId && sp.tier === tier && sp.status === "active")
-    );
-
-    const questions = this.getQuestions(courseId, tier);
+  ): Promise<StudyPlan> {
+    const questions = await this.getQuestions(courseId, tier);
     const questionIds = questions.map((q) => q.id);
-
-    // Shuffle questionIds to randomize daily distribution
     const shuffledIds = [...questionIds].sort(() => Math.random() - 0.5);
 
     let totalDays = 1;
@@ -839,7 +1009,6 @@ export class LocalDatabase {
       questionsPerDay[day] = [];
     }
 
-    // Partition 50 questions into days
     shuffledIds.forEach((id, index) => {
       const day = (index % totalDays) + 1;
       questionsPerDay[day].push(id);
@@ -860,23 +1029,29 @@ export class LocalDatabase {
       startDate: new Date().toISOString()
     };
 
+    if (process.env.SUPABASE_URL) {
+      await this.supabaseRequest("study_plans", "DELETE", `userId=eq.${encodeURIComponent(userId)}&courseId=eq.${encodeURIComponent(courseId)}&tier=eq.${encodeURIComponent(tier)}&status=eq.active`);
+      await this.supabaseRequest("study_plans", "POST", undefined, newPlan);
+      return newPlan;
+    }
+
+    await this.getStudyPlans();
+    this.state.studyPlans = this.state.studyPlans.filter(
+      (sp) => !(sp.userId === userId && sp.courseId === courseId && sp.tier === tier && sp.status === "active")
+    );
     this.state.studyPlans.push(newPlan);
     this.save();
     return newPlan;
   }
 
-  public submitDayProgress(
+  public async submitDayProgress(
     userId: string,
     courseId: string,
     tier: Tier,
     day: number,
     score: number
-  ): { plan: StudyPlan; cumulativeScore: number; passed: boolean; unlockedNext: boolean; nextTier: Tier | null } {
-    this.getStudyPlans();
-    const plan = this.state.studyPlans.find(
-      (sp) => sp.userId === userId && sp.courseId === courseId && sp.tier === tier && sp.status === "active"
-    );
-
+  ): Promise<{ plan: StudyPlan; cumulativeScore: number; passed: boolean; unlockedNext: boolean; nextTier: Tier | null }> {
+    const plan = await this.getStudyPlan(userId, courseId, tier);
     if (!plan) {
       throw new Error("Active study plan not found");
     }
@@ -899,21 +1074,33 @@ export class LocalDatabase {
       plan.status = "completed";
       passed = cumulativeScore >= 35; // 70% threshold
 
-      // If they passed the entire plan, submit progress to unlock next tier
-      const result = this.submitProgress(userId, courseId, tier, cumulativeScore);
+      const result = await this.submitProgress(userId, courseId, tier, cumulativeScore);
       unlockedNext = result.unlockedNext;
       nextTier = result.nextTier;
     } else {
-      // Advance to next day
       plan.currentDay = Math.min(plan.totalDays, day + 1);
     }
 
-    this.save();
+    if (process.env.SUPABASE_URL) {
+      await this.supabaseRequest("study_plans", "PATCH", `id=eq.${plan.id}`, {
+        scoresPerDay: plan.scoresPerDay,
+        completedDays: plan.completedDays,
+        status: plan.status,
+        currentDay: plan.currentDay
+      });
+    } else {
+      this.save();
+    }
+
     return { plan, cumulativeScore, passed, unlockedNext, nextTier };
   }
 
-  public resetStudyPlan(userId: string, courseId: string, tier: Tier): void {
-    this.getStudyPlans();
+  public async resetStudyPlan(userId: string, courseId: string, tier: Tier): Promise<void> {
+    if (process.env.SUPABASE_URL) {
+      await this.supabaseRequest("study_plans", "DELETE", `userId=eq.${encodeURIComponent(userId)}&courseId=eq.${encodeURIComponent(courseId)}&tier=eq.${encodeURIComponent(tier)}&status=eq.active`);
+      return;
+    }
+    await this.getStudyPlans();
     this.state.studyPlans = this.state.studyPlans.filter(
       (sp) => !(sp.userId === userId && sp.courseId === courseId && sp.tier === tier && sp.status === "active")
     );
