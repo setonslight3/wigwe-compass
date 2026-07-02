@@ -294,17 +294,26 @@ export class LocalDatabase {
   }
 
   private guaranteeInitializations() {
-    this.state.studyPlans = this.state.studyPlans || [];
-    this.state.progress = this.state.progress || [];
+    this.state.users = this.state.users || [];
     this.state.courses = this.state.courses || [];
-    
-    // Migrate old college names
-    this.state.courses.forEach(c => {
-      if (c.college === "College of Sciences" || c.college === "Sciences") c.college = "Science and Computing";
-      if (c.college === "College of Social Sciences" || c.college === "Social Sciences") c.college = "Management and Social Sciences";
-      if (c.college === "College of Engineering" || c.college === "Engineering") c.college = "Engineering";
-      if (c.college === "Art") c.college = "Art";
-    });
+    this.state.materials = this.state.materials || [];
+    this.state.questions = this.state.questions || [];
+    this.state.progress = this.state.progress || [];
+    this.state.studyPlans = this.state.studyPlans || [];
+
+    if (this.state.users.length === 0 && this.state.courses.length === 0) {
+      console.log("[Database] Loaded database state is empty. Seeding default data...");
+      this.seedDefaults();
+      this.save();
+    } else {
+      // Migrate old college names
+      this.state.courses.forEach(c => {
+        if (c.college === "College of Sciences" || c.college === "Sciences") c.college = "Science and Computing";
+        if (c.college === "College of Social Sciences" || c.college === "Social Sciences") c.college = "Management and Social Sciences";
+        if (c.college === "College of Engineering" || c.college === "Engineering") c.college = "Engineering";
+        if (c.college === "Art") c.college = "Art";
+      });
+    }
   }
 
   public save() {
