@@ -557,7 +557,16 @@ export class LocalDatabase {
         units: 2
       }
     ];
-    await this.supabaseRequest("courses", "POST", undefined, seedCourses);
+    const mappedSeedCourses = seedCourses.map(c => ({
+      id: c.id,
+      code: c.code,
+      title: c.title,
+      units: c.units,
+      level: c.level,
+      college: c.college || "",
+      programs: c.department.split(",").map(p => p.trim()).filter(Boolean)
+    }));
+    await this.supabaseRequest("courses", "POST", undefined, mappedSeedCourses);
 
     const seedMaterials: Material[] = [
       {
@@ -665,14 +674,32 @@ export class LocalDatabase {
 
   public async getCourses(): Promise<Course[]> {
     if (process.env.SUPABASE_URL) {
-      return await this.supabaseRequest("courses");
+      const rows = await this.supabaseRequest("courses");
+      return rows.map((r: any) => ({
+        id: r.id,
+        code: r.code,
+        title: r.title,
+        level: r.level,
+        college: r.college,
+        units: r.units,
+        department: Array.isArray(r.programs) ? r.programs.join(", ") : (r.programs || ""),
+      }));
     }
     return this.state.courses;
   }
 
   public async addCourse(course: Course): Promise<Course> {
     if (process.env.SUPABASE_URL) {
-      await this.supabaseRequest("courses", "POST", undefined, course);
+      const payload = {
+        id: course.id,
+        code: course.code,
+        title: course.title,
+        units: course.units,
+        level: course.level,
+        college: course.college || "",
+        programs: course.department.split(",").map(p => p.trim()).filter(Boolean)
+      };
+      await this.supabaseRequest("courses", "POST", undefined, payload);
       return course;
     }
     this.state.courses.push(course);
@@ -696,7 +723,17 @@ export class LocalDatabase {
   public async getCourseById(id: string): Promise<Course | undefined> {
     if (process.env.SUPABASE_URL) {
       const rows = await this.supabaseRequest("courses", "GET", `id=eq.${encodeURIComponent(id)}`);
-      return rows[0];
+      if (!rows || rows.length === 0) return undefined;
+      const r = rows[0];
+      return {
+        id: r.id,
+        code: r.code,
+        title: r.title,
+        level: r.level,
+        college: r.college,
+        units: r.units,
+        department: Array.isArray(r.programs) ? r.programs.join(", ") : (r.programs || ""),
+      };
     }
     return this.state.courses.find((c) => c.id === id);
   }
