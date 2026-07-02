@@ -252,10 +252,13 @@ export class LocalDatabase {
   }
 
   private async load(): Promise<void> {
-    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseUrl = process.env.SUPABASE_URL?.replace(/\/$/, "");
     const supabaseKey = process.env.SUPABASE_ANON_KEY;
 
     if (supabaseUrl && supabaseKey) {
+      if (typeof fetch === "undefined") {
+        throw new Error("global fetch is not defined in this Node.js runtime. Please upgrade your Vercel Node runtime to Node 18 or 20.");
+      }
       try {
         console.log(`[Database] Connecting to Supabase at: ${supabaseUrl}`);
         const res = await fetch(`${supabaseUrl}/rest/v1/compass_store?id=eq.1`, {
@@ -335,7 +338,7 @@ export class LocalDatabase {
     }
 
     // 2. Supabase saving (fire and forget)
-    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseUrl = process.env.SUPABASE_URL?.replace(/\/$/, "");
     const supabaseKey = process.env.SUPABASE_ANON_KEY;
 
     if (supabaseUrl && supabaseKey) {
