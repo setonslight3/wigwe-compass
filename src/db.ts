@@ -197,7 +197,7 @@ function generateSeedQuestions(courseId: string, tier: Tier, courseCode: string,
       tier,
       type,
       questionText,
-      options: options.length > 0 ? options : undefined,
+      options: options.length > 0 ? options : null,
       correctAnswer,
       explanation
     });
@@ -762,11 +762,7 @@ export class LocalDatabase {
         const course = await this.getCourseById(courseId);
         if (course) {
           const generated = generateSeedQuestions(courseId, tier, course.code, course.title);
-          const chunkSize = 100;
-          for (let i = 0; i < generated.length; i += chunkSize) {
-            const chunk = generated.slice(i, i + chunkSize);
-            await this.supabaseRequest("questions", "POST", undefined, chunk);
-          }
+          await this.saveQuestionsBulk(courseId, tier, generated);
           return generated;
         }
       }
@@ -789,9 +785,22 @@ export class LocalDatabase {
   public async saveQuestionsBulk(courseId: string, tier: Tier, questions: Question[]): Promise<void> {
     if (process.env.SUPABASE_URL) {
       await this.supabaseRequest("questions", "DELETE", `courseId=eq.${encodeURIComponent(courseId)}&tier=eq.${encodeURIComponent(tier)}`);
+      
+      // Ensure all objects in the chunk have the exact same keys to avoid PGRST102
+      const mapped = questions.map((q) => ({
+        id: q.id,
+        courseId: q.courseId,
+        tier: q.tier,
+        type: q.type || "mcq",
+        questionText: q.questionText,
+        options: q.options && q.options.length > 0 ? q.options : null,
+        correctAnswer: q.correctAnswer,
+        explanation: q.explanation || "",
+      }));
+
       const chunkSize = 100;
-      for (let i = 0; i < questions.length; i += chunkSize) {
-        const chunk = questions.slice(i, i + chunkSize);
+      for (let i = 0; i < mapped.length; i += chunkSize) {
+        const chunk = mapped.slice(i, i + chunkSize);
         await this.supabaseRequest("questions", "POST", undefined, chunk);
       }
       return;
