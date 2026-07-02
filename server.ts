@@ -627,6 +627,18 @@ app.post("/api/admin/upload-file", upload.single("file"), (req, res) => {
   });
 });
 
+app.get("/api/debug/status", asyncHandler(async (req, res) => {
+  const users = await db.getUsers();
+  const courses = await db.getCourses();
+  const studyPlans = await db.getStudyPlans();
+  return res.json({
+    users,
+    coursesCount: courses.length,
+    courses: courses.map(c => ({ id: c.id, code: c.code, title: c.title })),
+    studyPlans
+  });
+}));
+
 // --- VITE MIDDLEWARE SETUP ---
 async function startServer() {
   // Load database state from Supabase if configured, otherwise local file fallback
