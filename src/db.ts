@@ -218,6 +218,8 @@ export class LocalDatabase {
 
   private isSaving = false;
   private pendingSave = false;
+  private initialized = false;
+  private initPromise: Promise<void> | null = null;
 
   constructor() {
     // Synchronous load for local dev fallback (non-blocking)
@@ -238,7 +240,15 @@ export class LocalDatabase {
   }
 
   public async initialize(): Promise<void> {
-    await this.load();
+    if (this.initialized) return;
+    if (this.initPromise) return this.initPromise;
+
+    this.initPromise = (async () => {
+      await this.load();
+      this.initialized = true;
+    })();
+
+    return this.initPromise;
   }
 
   private async load(): Promise<void> {

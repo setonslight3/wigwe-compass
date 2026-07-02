@@ -109,6 +109,17 @@ async function generateAiQuestionsForCourse(courseCode: string, courseTitle: str
   }
 }
 
+// Ensure database is fully initialized before handling any route
+app.use(async (req, res, next) => {
+  try {
+    await db.initialize();
+    next();
+  } catch (error: any) {
+    console.error("[Database] Initialization middleware error:", error);
+    res.status(500).json({ error: "Database failed to initialize: " + error.message });
+  }
+});
+
 // --- API ROUTES ---
 
 // 1. Auth Helper Routes
