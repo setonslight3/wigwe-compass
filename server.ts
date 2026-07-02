@@ -119,10 +119,15 @@ app.use(async (req, res, next) => {
   }
 });
 
+// Helper to wrap async Express route handlers to prevent hanging on errors
+const asyncHandler = (fn: any) => (req: any, res: any, next: any) => {
+  Promise.resolve(fn(req, res, next)).catch(next);
+};
+
 // --- API ROUTES ---
 
 // 1. Auth Helper Routes
-app.post("/api/auth/login", async (req, res) => {
+app.post("/api/auth/login", asyncHandler(async (req, res) => {
   const { email } = req.body;
   if (!email) {
     return res.status(400).json({ error: "Email is required" });
@@ -132,9 +137,9 @@ app.post("/api/auth/login", async (req, res) => {
     return res.status(404).json({ error: "User not found" });
   }
   return res.json(user);
-});
+}));
 
-app.post("/api/auth/register", async (req, res) => {
+app.post("/api/auth/register", asyncHandler(async (req, res) => {
   const { name, email, level, department, role } = req.body;
   if (!name || !email || !level || !department) {
     return res.status(400).json({ error: "All fields are required" });
@@ -150,20 +155,21 @@ app.post("/api/auth/register", async (req, res) => {
     email,
     level,
     department,
+    password: "password123",
   });
   return res.json(newUser);
-});
+}));
 
-app.get("/api/users/:id", async (req, res) => {
+app.get("/api/users/:id", asyncHandler(async (req, res) => {
   const user = await db.getUserById(req.params.id);
   if (!user) {
     return res.status(404).json({ error: "User not found" });
   }
   return res.json(user);
-});
+}));
 
 // 2. Admin Endpoints
-app.post("/api/admin/upload-material", async (req, res) => {
+app.post("/api/admin/upload-material", asyncHandler(async (req, res) => {
   const { courseId, fileName, fileUrl, fileType, week } = req.body;
   if (!courseId || !fileName || !fileUrl || !fileType) {
     return res.status(400).json({ error: "courseId, fileName, fileUrl, and fileType are required" });
@@ -179,9 +185,9 @@ app.post("/api/admin/upload-material", async (req, res) => {
   });
 
   return res.json({ success: true, material: newMaterial });
-});
+}));
 
-app.post("/api/admin/questions/bulk", async (req, res) => {
+app.post("/api/admin/questions/bulk", asyncHandler(async (req, res) => {
   const { courseId, tier, questions } = req.body;
   if (!courseId || !tier || !questions) {
     return res.status(400).json({ error: "courseId, tier, and questions array are required" });
@@ -219,10 +225,10 @@ app.post("/api/admin/questions/bulk", async (req, res) => {
     success: true,
     message: `Successfully saved exactly 50 questions for course ${courseId} (${tier}).`,
   });
-});
+}));
 
 // 3. Student Endpoints
-app.get("/api/courses", async (req, res) => {
+app.get("/api/courses", asyncHandler(async (req, res) => {
   const { level, department, college } = req.query;
   let courses = await db.getCourses();
 
@@ -240,9 +246,9 @@ app.get("/api/courses", async (req, res) => {
   }
 
   return res.json(courses);
-});
+}));
 
-app.delete("/api/courses/:id", async (req, res) => {
+app.delete("/api/courses/:id", asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { pin } = req.body;
 
@@ -257,17 +263,17 @@ app.delete("/api/courses/:id", async (req, res) => {
 
   await db.deleteCourse(id);
   return res.json({ success: true, message: `Course ${course.code} deleted successfully.` });
-});
+}));
 
-app.get("/api/courses/:id", async (req, res) => {
+app.get("/api/courses/:id", asyncHandler(async (req, res) => {
   const course = await db.getCourseById(req.params.id);
   if (!course) {
     return res.status(404).json({ error: "Course not found" });
   }
   return res.json(course);
-});
+}));
 
-app.post("/api/courses/create", async (req, res) => {
+app.post("/api/courses/create", asyncHandler(async (req, res) => {
   const { code, title, department, college, units, level, userId } = req.body;
   if (!code || !title || !department || !college || !units) {
     return res.status(400).json({ error: "code, title, department, college, and units are required" });
@@ -307,14 +313,14 @@ app.post("/api/courses/create", async (req, res) => {
   }
 
   return res.json({ success: true, course: newCourse });
-});
+}));
 
-app.get("/api/courses/:id/materials", async (req, res) => {
+app.get("/api/courses/:id/materials", asyncHandler(async (req, res) => {
   const materials = await db.getMaterialsByCourseId(req.params.id);
   return res.json(materials);
-});
+}));
 
-app.get("/api/courses/:id/tiers/:tier/questions", async (req, res) => {
+app.get("/api/courses/:id/tiers/:tier/questions", asyncHandler(async (req, res) => {
   const { id, tier } = req.params;
   let questions = await db.getQuestions(id, tier as Tier);
   
@@ -330,19 +336,19 @@ app.get("/api/courses/:id/tiers/:tier/questions", async (req, res) => {
   }
 
   return res.json(questions);
-});
+}));
 
-app.get("/api/courses/:id/tiers/:tier/leaderboard", async (req, res) => {
+app.get("/api/courses/:id/tiers/:tier/leaderboard", asyncHandler(async (req, res) => {
   const leaderboard = await db.getLeaderboard(req.params.id, req.params.tier as any);
   return res.json(leaderboard);
-});
+}));
 
-app.get("/api/progress/:userId", async (req, res) => {
+app.get("/api/progress/:userId", asyncHandler(async (req, res) => {
   const progress = await db.getProgress(req.params.userId);
   return res.json(progress);
-});
+}));
 
-app.post("/api/progress/submit", async (req, res) => {
+app.post("/api/progress/submit", asyncHandler(async (req, res) => {
   const { userId, courseId, tier, answers } = req.body;
   if (!userId || !courseId || !tier || !Array.isArray(answers)) {
     return res.status(400).json({ error: "userId, courseId, tier, and answers array are required" });
@@ -381,19 +387,19 @@ app.post("/api/progress/submit", async (req, res) => {
     nextTier: dbResult.nextTier,
     results,
   });
-});
+}));
 
 // 4. Study Plan Endpoints
-app.get("/api/study-plans/active", async (req, res) => {
+app.get("/api/study-plans/active", asyncHandler(async (req, res) => {
   const { userId, courseId, tier } = req.query;
   if (!userId || !courseId || !tier) {
     return res.status(400).json({ error: "userId, courseId, and tier are required" });
   }
   const activePlan = await db.getStudyPlan(userId as string, courseId as string, tier as Tier);
   return res.json({ activePlan: activePlan || null });
-});
+}));
 
-app.post("/api/study-plans/start", async (req, res) => {
+app.post("/api/study-plans/start", asyncHandler(async (req, res) => {
   const { userId, courseId, tier, planType } = req.body;
   if (!userId || !courseId || !tier || !planType) {
     return res.status(400).json({ error: "userId, courseId, tier, and planType are required" });
@@ -404,9 +410,9 @@ app.post("/api/study-plans/start", async (req, res) => {
   } catch (error: any) {
     return res.status(500).json({ error: error.message || error });
   }
-});
+}));
 
-app.post("/api/study-plans/submit-day", async (req, res) => {
+app.post("/api/study-plans/submit-day", asyncHandler(async (req, res) => {
   const { userId, courseId, tier, day, answers } = req.body;
   if (!userId || !courseId || !tier || !day || !Array.isArray(answers)) {
     return res.status(400).json({ error: "userId, courseId, tier, day, and answers array are required" });
@@ -484,19 +490,19 @@ app.post("/api/study-plans/submit-day", async (req, res) => {
     console.error("Submit day progress error:", error);
     return res.status(505).json({ error: error.message || error });
   }
-});
+}));
 
-app.post("/api/study-plans/reset", async (req, res) => {
+app.post("/api/study-plans/reset", asyncHandler(async (req, res) => {
   const { userId, courseId, tier } = req.body;
   if (!userId || !courseId || !tier) {
     return res.status(400).json({ error: "userId, courseId, and tier are required" });
   }
   await db.resetStudyPlan(userId, courseId, tier);
   return res.json({ success: true });
-});
+}));
 
 // 5. AI Tutor Endpoint
-app.post("/api/ai/tutor", async (req, res) => {
+app.post("/api/ai/tutor", asyncHandler(async (req, res) => {
   const { message, courseId, userId, chatHistory } = req.body;
   if (!message || !courseId || !userId) {
     return res.status(400).json({ error: "message, courseId, and userId are required" });
@@ -518,39 +524,39 @@ app.post("/api/ai/tutor", async (req, res) => {
     const courseTitle = course.title || "Selected Course";
     const courseCode = course.code || "Course Code";
 
-    // Build standard System Instruction
-    const systemInstruction = `You are Wigwe Compass, an expert academic tutor for Wigwe University students. Your goal is to help students understand their course materials. 
- 
-RULES:
-1. You are a tutor, NOT an exam solver. Do not just give direct answers to practice questions; guide the student to the answer using the Socratic method.
-2. Base your explanations strictly on the provided course context and general academic knowledge for the specified level (${userLevel}).
-3. Keep explanations clear, concise, and encouraging.
-4. If asked a question unrelated to academics, politely redirect them to their studies.
- 
-Context:
-Course: ${courseTitle} (${courseCode})
-Student Name: ${userName}
-Student Level: ${userLevel}
-Student Department: ${userDept}
-Available Course Materials:
-${materialsContext || "No materials uploaded yet."}`;
-
-    // Format chat history for Gemini API
+    // Build chat context
     const contents: any[] = [];
+    
+    // Add history
     if (Array.isArray(chatHistory)) {
       chatHistory.forEach((msg: any) => {
         contents.push({
           role: msg.sender === "user" ? "user" : "model",
-          parts: [{ text: msg.text }],
+          parts: [{ text: msg.text }]
         });
       });
     }
 
-    // Append current user message
+    // Add current user prompt
     contents.push({
       role: "user",
-      parts: [{ text: message }],
+      parts: [{ text: message }]
     });
+
+    const systemInstruction = `You are "Wigwe Compass Socratic Guide", an intelligent AI academic tutor at Wigwe University.
+    Your slogan is: "Navigating academics, nurturing fearless leaders."
+    You are tutoring ${userName}, a ${userLevel} student in the ${userDept} program.
+    
+    The course being discussed is: ${courseCode} - ${courseTitle}.
+    
+    Available uploaded course files:
+    ${materialsContext}
+    
+    INSTRUCTIONS:
+    1. Adopt a Socratic teaching style: DO NOT directly give the student the final answers to their homework or study questions. Instead, guide them with helpful, progressive hints, asking key questions that lead them to deduce the answer themselves.
+    2. Be encouraging, intellectually stimulating, and highly supportive.
+    3. Ground your academic knowledge in the listed course files, but feel free to explain broader foundational concepts in computer science, business, arts, etc.
+    4. Keep answers relatively concise (1-2 paragraphs) to keep the chat engaging.`;
 
     // Check if GEMINI_API_KEY is dummy
     if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === "MY_GEMINI_API_KEY" || process.env.GEMINI_API_KEY === "DUMMY_KEY") {
@@ -579,7 +585,7 @@ ${materialsContext || "No materials uploaded yet."}`;
       error: "Error from Socratic AI Tutor: " + (error.message || error),
     });
   }
-});
+}));
 
 // Configure multer storage for admin uploads
 const uploadDir = process.env.VERCEL
