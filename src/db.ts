@@ -1,163 +1,205 @@
 import fs from "fs";
 import path from "path";
-import { DatabaseState, User, Course, Material, Question, Progress, Tier, Level } from "./types.js";
+import { DatabaseState, User, Course, Material, Question, Progress, Tier, Level, StudyPlan } from "./types.js";
 
-const DB_FILE = path.join(process.cwd(), "db.json");
+const DB_FILE = process.env.VERCEL 
+  ? path.join("/tmp", "db.json")
+  : path.join(process.cwd(), "db.json");
 
-// Helper to seed initial questions for a course & tier to guarantee exactly 50 questions.
+// Helper to seed initial questions for a course & tier to guarantee exactly 50 questions of varied types.
 function generateSeedQuestions(courseId: string, tier: Tier, courseCode: string, courseTitle: string): Question[] {
-  const baseQuestions: Omit<Question, "id" | "courseId" | "tier">[] = [];
+  const seeded: Question[] = [];
 
-  if (courseCode === "CSC401") { // Advanced Algorithms
-    if (tier === "easy") {
-      baseQuestions.push(
-        {
-          questionText: "Which of the following describes the time complexity of the classic binary search algorithm?",
-          options: ["O(N log N)", "O(log N)", "O(N)", "O(1)"],
-          correctAnswer: "B",
-          explanation: "Binary search divides the search interval in half each time, resulting in a logarithmic time complexity of O(log N)."
-        },
-        {
-          questionText: "What is the primary memory overhead constraint in recursive Depth-First Search (DFS)?",
-          options: ["Heap space allocation", "Call stack frames depth", "Garbage collection cycles", "Register allocation limits"],
-          correctAnswer: "B",
-          explanation: "Recursive DFS relies on the system call stack for storing frames, leading to potential stack overflow if recursion depth is high."
-        },
-        {
-          questionText: "Which design paradigm is primarily utilized in Dijkstra's shortest path algorithm?",
-          options: ["Divide and Conquer", "Dynamic Programming", "Greedy Method", "Backtracking"],
-          correctAnswer: "C",
-          explanation: "Dijkstra's algorithm is greedy because it always chooses the next closest unvisited vertex with the minimum distance."
-        }
-      );
-    } else if (tier === "medium") {
-      baseQuestions.push(
-        {
-          questionText: "In Dynamic Programming, what is the key difference between Memoization and Tabulation?",
-          options: [
-            "Memoization is bottom-up (iterative); Tabulation is top-down (recursive).",
-            "Memoization is top-down (recursive); Tabulation is bottom-up (iterative).",
-            "Memoization uses O(N) auxiliary space while Tabulation uses O(1) space.",
-            "Memoization never caches sub-problem states whereas Tabulation does."
-          ],
-          correctAnswer: "B",
-          explanation: "Memoization caches results of recursive calls (top-down), while Tabulation fills up a table starting from base cases upwards (bottom-up)."
-        },
-        {
-          questionText: "What does the Bellman-Ford algorithm offer that Dijkstra's algorithm cannot handle?",
-          options: [
-            "Unweighted adjacency lists",
-            "Negative edge weights in graph",
-            "Self-loop detections",
-            "Faster asymptotic running time"
-          ],
-          correctAnswer: "B",
-          explanation: "Bellman-Ford can handle graphs with negative edge weights and detect negative cycles, unlike Dijkstra's algorithm."
-        }
-      );
-    } else {
-      baseQuestions.push(
-        {
-          questionText: "Which of the following statements is TRUE regarding NP-Complete problems?",
-          options: [
+  for (let i = 1; i <= 50; i++) {
+    let type: "mcq" | "true_false" | "fill_blank" | "short_answer" = "mcq";
+    if (i > 40) type = "short_answer";
+    else if (i > 30) type = "fill_blank";
+    else if (i > 20) type = "true_false";
+
+    let questionText = "";
+    let options: string[] = [];
+    let correctAnswer = "";
+    let explanation = "";
+
+    if (type === "mcq") {
+      if (courseCode === "CSC401") {
+        if (tier === "easy") {
+          const mcqs = [
+            {
+              q: "Which of the following describes the time complexity of the classic binary search algorithm?",
+              opts: ["O(N log N)", "O(log N)", "O(N)", "O(1)"],
+              ans: "B",
+              exp: "Binary search divides the search interval in half each time, resulting in a logarithmic time complexity of O(log N)."
+            },
+            {
+              q: "What is the primary memory overhead constraint in recursive Depth-First Search (DFS)?",
+              opts: ["Heap space allocation", "Call stack frames depth", "Garbage collection cycles", "Register allocation limits"],
+              ans: "B",
+              exp: "Recursive DFS relies on the system call stack for storing frames, leading to potential stack overflow if recursion depth is high."
+            },
+            {
+              q: "Which design paradigm is primarily utilized in Dijkstra's shortest path algorithm?",
+              opts: ["Divide and Conquer", "Dynamic Programming", "Greedy Method", "Backtracking"],
+              ans: "C",
+              exp: "Dijkstra's algorithm is greedy because it always chooses the next closest unvisited vertex with the minimum distance."
+            }
+          ];
+          const base = mcqs[(i - 1) % mcqs.length];
+          questionText = base.q;
+          options = [...base.opts];
+          correctAnswer = base.ans;
+          explanation = base.exp;
+        } else if (tier === "medium") {
+          const mcqs = [
+            {
+              q: "In Dynamic Programming, what is the key difference between Memoization and Tabulation?",
+              opts: [
+                "Memoization is bottom-up (iterative); Tabulation is top-down (recursive).",
+                "Memoization is top-down (recursive); Tabulation is bottom-up (iterative).",
+                "Memoization uses O(N) auxiliary space while Tabulation uses O(1) space.",
+                "Memoization never caches sub-problem states whereas Tabulation does."
+              ],
+              ans: "B",
+              exp: "Memoization caches results of recursive calls (top-down), while Tabulation fills up a table starting from base cases upwards (bottom-up)."
+            },
+            {
+              q: "What does the Bellman-Ford algorithm offer that Dijkstra's algorithm cannot handle?",
+              opts: [
+                "Unweighted adjacency lists",
+                "Negative edge weights in graph",
+                "Self-loop detections",
+                "Faster asymptotic running time"
+              ],
+              ans: "B",
+              exp: "Bellman-Ford can handle graphs with negative edge weights and detect negative cycles, unlike Dijkstra's algorithm."
+            }
+          ];
+          const base = mcqs[(i - 1) % mcqs.length];
+          questionText = base.q;
+          options = [...base.opts];
+          correctAnswer = base.ans;
+          explanation = base.exp;
+        } else {
+          questionText = "Which of the following statements is TRUE regarding NP-Complete problems?";
+          options = [
             "They can be solved in polynomial time on a deterministic Turing machine.",
             "A polynomial-time solution for any NP-Complete problem solves all NP problems in polynomial time.",
             "They are strictly simpler than NP-Hard problems.",
             "No NP-Complete problem can be verified in polynomial time."
-          ],
-          correctAnswer: "B",
-          explanation: "NP-Complete is the subclass of NP problems such that if any of them is solved in polynomial time, P = NP (all NP problems are solved in polynomial time)."
+          ];
+          correctAnswer = "B";
+          explanation = "NP-Complete is the subclass of NP problems such that if any of them is solved in polynomial time, P = NP.";
         }
-      );
-    }
-  } else if (courseCode === "ECO401") { // Advanced Macroeconomics
-    if (tier === "easy") {
-      baseQuestions.push(
-        {
-          questionText: "According to Keynsian fiscal policy, what is the primary consequence of an increase in government expenditure during a recession?",
-          options: [
-            "An immediate decrease in tax rates",
-            "A shift of aggregate demand to the right through the multiplier effect",
-            "An increase in long-run aggregate supply without inflation",
-            "A proportional reduction in national deficit"
-          ],
-          correctAnswer: "B",
-          explanation: "An increase in government spending increases overall demand, which shifts the AD curve to the right, magnified by the fiscal multiplier."
-        },
-        {
-          questionText: "Which institution is primarily responsible for implementing monetary policy in Nigeria?",
-          options: ["Ministry of Finance", "Central Bank of Nigeria (CBN)", "National Bureau of Statistics", "Securities and Exchange Commission"],
-          correctAnswer: "B",
-          explanation: "The CBN is the apex monetary authority in Nigeria responsible for regulating currency, interest rates, and overall money supply."
-        }
-      );
-    } else if (tier === "medium") {
-      baseQuestions.push(
-        {
-          questionText: "What does the Ricardian Equivalence hypothesis state about government deficit spending?",
-          options: [
+      } else if (courseCode === "ECO401") {
+        if (tier === "easy") {
+          const mcqs = [
+            {
+              q: "According to Keynesian fiscal policy, what is the primary consequence of an increase in government expenditure during a recession?",
+              opts: [
+                "An immediate decrease in tax rates",
+                "A shift of aggregate demand to the right through the multiplier effect",
+                "An increase in long-run aggregate supply without inflation",
+                "A proportional reduction in national deficit"
+              ],
+              ans: "B",
+              exp: "An increase in government spending increases overall demand, which shifts the AD curve to the right, magnified by the fiscal multiplier."
+            },
+            {
+              q: "Which institution is primarily responsible for implementing monetary policy in Nigeria?",
+              opts: ["Ministry of Finance", "Central Bank of Nigeria (CBN)", "National Bureau of Statistics", "Securities and Exchange Commission"],
+              ans: "B",
+              exp: "The CBN is the apex monetary authority in Nigeria responsible for regulating currency, interest rates, and overall money supply."
+            }
+          ];
+          const base = mcqs[(i - 1) % mcqs.length];
+          questionText = base.q;
+          options = [...base.opts];
+          correctAnswer = base.ans;
+          explanation = base.exp;
+        } else if (tier === "medium") {
+          questionText = "What does the Ricardian Equivalence hypothesis state about government deficit spending?";
+          options = [
             "It leads to hyperinflation in all circumstances.",
             "Consumers anticipate future tax increases, offsetting any expansionary fiscal impact by saving their current income.",
-            "It permanently increases interest rates and crowd-out private investment.",
+            "It permanently increases interest rates and crowds out private investment.",
             "It reduces national savings to zero."
-          ],
-          correctAnswer: "B",
-          explanation: "Ricardian Equivalence posits that government spending funded by debt has no effect on total demand because taxpayers save today to pay future taxes."
-        }
-      );
-    } else {
-      baseQuestions.push(
-        {
-          questionText: "Under a Mundell-Fleming framework with perfect capital mobility and flexible exchange rates, what is the effect of expansionary fiscal policy?",
-          options: [
+          ];
+          correctAnswer = "B";
+          explanation = "Ricardian Equivalence posits that government spending funded by debt has no effect on total demand because taxpayers save today to pay future taxes.";
+        } else {
+          questionText = "Under a Mundell-Fleming framework with perfect capital mobility and flexible exchange rates, what is the effect of expansionary fiscal policy?";
+          options = [
             "Highly effective, leading to a massive increase in GDP.",
             "Completely ineffective, as currency appreciation crowds out net exports entirely.",
             "Somewhat effective, causing capital flight.",
             "Extremely effective in lower-income countries only."
-          ],
-          correctAnswer: "B",
-          explanation: "Under flexible exchange rates and high capital mobility, fiscal expansion attracts capital, drives up exchange rate, crowding out net exports completely."
+          ];
+          correctAnswer = "B";
+          explanation = "Under flexible exchange rates and high capital mobility, fiscal expansion attracts capital, drives up exchange rate, crowding out net exports completely.";
         }
-      );
-    }
-  } else { // Generic / Neural Pathways (BIO405)
-    baseQuestions.push(
-      {
-        questionText: `Which neurotransmitter is primarily responsible for the rapid relay of signals between neurons in the mammalian central nervous system?`,
-        options: [
+      } else if (courseCode === "ART401") {
+        questionText = "Which culture is famous for producing highly sophisticated terracotta sculptures in Nigeria between 1500 BC and 200 AD?";
+        options = ["Nok Culture", "Kingdom of Benin", "Igbo-Ukwu", "Kingdom of Ife"];
+        correctAnswer = "A";
+        explanation = "The Nok Culture is famous for its distinct terracotta sculptures, representing some of the earliest refined art in West Africa.";
+      } else {
+        questionText = "Which neurotransmitter is primarily responsible for the rapid relay of signals between neurons in the mammalian central nervous system?";
+        options = [
           "Dopamine and its associated reward pathways",
           "Glutamate, acting on excitatory ionotropic receptors",
           "Serotonin regulation in the prefrontal cortex",
           "GABA acting as the primary inhibitory controller"
-        ],
-        correctAnswer: "B",
-        explanation: "Glutamate is the primary fast excitatory neurotransmitter in the mammalian brain, acting on AMPA, NMDA, and kainate receptors."
+        ];
+        correctAnswer = "B";
+        explanation = "Glutamate is the primary fast excitatory neurotransmitter in the mammalian brain, acting on AMPA, NMDA, and kainate receptors.";
       }
-    );
-  }
+      questionText = `[Q${i}] ${questionText}`;
+    } else if (type === "true_false") {
+      options = ["True", "False"];
+      correctAnswer = i % 2 === 0 ? "True" : "False";
+      questionText = `[Q${i} - True/False] Is it correct to state that Nok terracotta art represents the oldest known figurative sculpture in Sub-Saharan Africa?`;
+      explanation = "Yes, Nok terracottas date back to at least 500 BC (and newer evidence suggests 1500 BC), making them the oldest figurative art in Sub-Saharan Africa.";
+      if (courseCode === "CSC401") {
+        questionText = `[Q${i} - True/False] Is it correct to state that the optimal substructure property is a prerequisite for applying Dynamic Programming techniques to a problem?`;
+        explanation = "Yes, dynamic programming requires both optimal substructure and overlapping subproblems.";
+      } else if (courseCode === "ECO401") {
+        questionText = `[Q${i} - True/False] Under fixed exchange rates, fiscal policy is highly effective compared to monetary policy under perfect capital mobility.`;
+        correctAnswer = "True";
+        explanation = "Under fixed exchange rates, monetary policy is locked in to maintain the peg, leaving fiscal policy highly effective.";
+      }
+    } else if (type === "fill_blank") {
+      correctAnswer = courseCode === "CSC401" ? "Memoization" : courseCode === "ECO401" ? "Inflation" : courseCode === "ART401" ? "Terracotta" : "Neuron";
+      questionText = `[Q${i} - Fill in the blank] The artistic medium consisting of baked clay, widely used in Nok and Ife sculptures, is known as ___________.`;
+      if (courseCode === "CSC401") {
+        questionText = `[Q${i} - Fill in the blank] The top-down optimization approach in dynamic programming that stores computed results of recursive calls is known as ___________.`;
+      } else if (courseCode === "ECO401") {
+        questionText = `[Q${i} - Fill in the blank] A general and progressive increase in prices and fall in the purchasing value of money is known as ___________.`;
+      } else if (courseCode === "BIO405") {
+        questionText = `[Q${i} - Fill in the blank] The basic working unit of the brain, a specialized cell designed to transmit information to other nerve cells, is a ___________.`;
+      }
+      explanation = `The correct answer is ${correctAnswer}. This is a fundamental terminology check.`;
+    } else { // short_answer
+      correctAnswer = courseCode === "CSC401" ? "overlapping, subproblems, recursion, space" : courseCode === "ECO401" ? "aggregate, demand, supply, equilibrium" : courseCode === "ART401" ? "clay, terracotta, figures, nok" : "synapse, neurotransmitter, receptor, signal";
+      questionText = `[Q${i} - Short Answer] Briefly explain the artistic significance of Nok terracotta heads in African art history.`;
+      if (courseCode === "CSC401") {
+        questionText = `[Q${i} - Short Answer] Briefly explain the core difference between Dynamic Programming and Divide-and-Conquer algorithms.`;
+      } else if (courseCode === "ECO401") {
+        questionText = `[Q${i} - Short Answer] Briefly explain the impact of high inflation rates on the purchasing power of the Nigerian Naira.`;
+      } else if (courseCode === "BIO405") {
+        questionText = `[Q${i} - Short Answer] Briefly explain the process of synaptic transmission between two neurons.`;
+      }
+      explanation = `Short answer evaluated based on academic keyword coverage: ${correctAnswer.split(", ").join(", ")}.`;
+    }
 
-  // Fallback if empty
-  if (baseQuestions.length === 0) {
-    baseQuestions.push({
-      questionText: `Foundational study question for ${courseTitle} (${tier} level).`,
-      options: ["Correct answer option", "Incorrect option B", "Incorrect option C", "Incorrect option D"],
-      correctAnswer: "A",
-      explanation: "This is a detailed academic explanation."
-    });
-  }
-
-  // Expand to exactly 50 questions
-  const seeded: Question[] = [];
-  for (let i = 1; i <= 50; i++) {
-    const base = baseQuestions[(i - 1) % baseQuestions.length];
     seeded.push({
       id: `${courseId}-${tier}-${i}`,
       courseId,
       tier,
-      questionText: `[Q${i}] ${base.questionText}`,
-      options: [...base.options],
-      correctAnswer: base.correctAnswer,
-      explanation: `${base.explanation} (Reference concept context Q${i}).`
+      type,
+      questionText,
+      options: options.length > 0 ? options : undefined,
+      correctAnswer,
+      explanation
     });
   }
 
@@ -170,34 +212,148 @@ export class LocalDatabase {
     courses: [],
     materials: [],
     questions: [],
-    progress: []
+    progress: [],
+    studyPlans: []
   };
 
+  private isSaving = false;
+  private pendingSave = false;
+
   constructor() {
-    this.load();
+    // Synchronous load for local dev fallback (non-blocking)
+    if (!process.env.SUPABASE_URL) {
+      try {
+        if (fs.existsSync(DB_FILE)) {
+          const raw = fs.readFileSync(DB_FILE, "utf-8");
+          this.state = JSON.parse(raw);
+          this.guaranteeInitializations();
+        } else {
+          this.seedDefaults();
+          fs.writeFileSync(DB_FILE, JSON.stringify(this.state, null, 2), "utf-8");
+        }
+      } catch (e) {
+        this.seedDefaults();
+      }
+    }
   }
 
-  private load() {
+  public async initialize(): Promise<void> {
+    await this.load();
+  }
+
+  private async load(): Promise<void> {
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_ANON_KEY;
+
+    if (supabaseUrl && supabaseKey) {
+      try {
+        console.log(`[Database] Connecting to Supabase at: ${supabaseUrl}`);
+        const res = await fetch(`${supabaseUrl}/rest/v1/compass_store?id=eq.1`, {
+          headers: {
+            "apikey": supabaseKey,
+            "Authorization": `Bearer ${supabaseKey}`
+          }
+        });
+        if (res.ok) {
+          const rows: any = await res.json();
+          if (rows && rows.length > 0) {
+            console.log("[Database] Loaded state successfully from Supabase.");
+            this.state = rows[0].state;
+            this.guaranteeInitializations();
+            return;
+          }
+        }
+        console.warn("[Database] No state found in Supabase table. Initializing defaults...");
+      } catch (e: any) {
+        console.error("[Database] Error loading from Supabase:", e.message);
+      }
+    }
+
+    // Local file fallback
     try {
+      if (process.env.VERCEL && !fs.existsSync(DB_FILE)) {
+        const templatePath = path.join(process.cwd(), "db.json");
+        if (fs.existsSync(templatePath)) {
+          fs.copyFileSync(templatePath, DB_FILE);
+        }
+      }
+
       if (fs.existsSync(DB_FILE)) {
         const raw = fs.readFileSync(DB_FILE, "utf-8");
         this.state = JSON.parse(raw);
+        this.guaranteeInitializations();
       } else {
         this.seedDefaults();
         this.save();
       }
     } catch (e) {
-      console.error("Error loading local database:", e);
+      console.error("[Database] Error loading local database:", e);
       this.seedDefaults();
       this.save();
     }
   }
 
-  private save() {
+  private guaranteeInitializations() {
+    this.state.studyPlans = this.state.studyPlans || [];
+    this.state.progress = this.state.progress || [];
+    this.state.courses = this.state.courses || [];
+    
+    // Migrate old college names
+    this.state.courses.forEach(c => {
+      if (c.college === "College of Sciences" || c.college === "Sciences") c.college = "Science and Computing";
+      if (c.college === "College of Social Sciences" || c.college === "Social Sciences") c.college = "Management and Social Sciences";
+      if (c.college === "College of Engineering" || c.college === "Engineering") c.college = "Engineering";
+      if (c.college === "Art") c.college = "Art";
+    });
+  }
+
+  public save() {
+    // 1. Local saving
     try {
       fs.writeFileSync(DB_FILE, JSON.stringify(this.state, null, 2), "utf-8");
-    } catch (e) {
-      console.error("Error saving local database:", e);
+    } catch (e: any) {
+      console.error("[Database] Local save warning:", e.message);
+    }
+
+    // 2. Supabase saving (fire and forget)
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_ANON_KEY;
+
+    if (supabaseUrl && supabaseKey) {
+      this.saveToSupabase(supabaseUrl, supabaseKey);
+    }
+  }
+
+  private async saveToSupabase(url: string, key: string) {
+    if (this.isSaving) {
+      this.pendingSave = true;
+      return;
+    }
+    this.isSaving = true;
+
+    try {
+      const res = await fetch(`${url}/rest/v1/compass_store?id=eq.1`, {
+        method: "POST",
+        headers: {
+          "apikey": key,
+          "Authorization": `Bearer ${key}`,
+          "Content-Type": "application/json",
+          "Prefer": "resolution=merge-duplicates"
+        },
+        body: JSON.stringify({ id: 1, state: this.state })
+      });
+      if (!res.ok) {
+        const errText = await res.text();
+        console.error("[Database] Supabase save failure status:", res.status, errText);
+      }
+    } catch (e: any) {
+      console.error("[Database] Supabase save error:", e.message);
+    } finally {
+      this.isSaving = false;
+      if (this.pendingSave) {
+        this.pendingSave = false;
+        this.saveToSupabase(url, key);
+      }
     }
   }
 
@@ -210,7 +366,7 @@ export class LocalDatabase {
         name: "Alex",
         email: "student@university.edu",
         level: "400L",
-        department: "Computer Science"
+        department: "BSc Computer Science"
       },
       {
         id: "admin1",
@@ -218,39 +374,47 @@ export class LocalDatabase {
         name: "Dr. Ojo",
         email: "admin@university.edu",
         level: "500L",
-        department: "Computer Science"
+        department: "BSc Computer Science"
       }
     ];
 
-    // Courses matching screenshots and level
+    // Courses matching screenshots, level, colleges and units
     const seedCourses: Course[] = [
       {
         id: "course-csc401",
         code: "CSC401",
         title: "Advanced Algorithms",
-        department: "Computer Science",
-        level: "400L"
+        department: "BSc Computer Science",
+        level: "400L",
+        college: "Science and Computing",
+        units: 3
       },
       {
         id: "course-csc402",
         code: "CSC402",
         title: "UI/UX Design Systems",
-        department: "Computer Science",
-        level: "400L"
+        department: "BSc Computer Science",
+        level: "400L",
+        college: "Science and Computing",
+        units: 3
       },
       {
         id: "course-eco401",
         code: "ECO401",
         title: "Advanced Macroeconomics",
-        department: "Economics",
-        level: "400L"
+        department: "BSc Economics",
+        level: "400L",
+        college: "Management and Social Sciences",
+        units: 4
       },
       {
         id: "course-bio405",
         code: "BIO405",
         title: "Neural Pathways",
-        department: "Biochemistry",
-        level: "400L"
+        department: "BSc Robotics (Artificial Intelligence)",
+        level: "400L",
+        college: "Science and Computing",
+        units: 2
       }
     ];
 
@@ -382,7 +546,7 @@ export class LocalDatabase {
         tier: "hard",
         score: 0,
         status: "locked"
-      }
+      },
     ];
 
     // Seed questions for all courses and tiers (guaranteeing exactly 50 per tier)
@@ -399,7 +563,8 @@ export class LocalDatabase {
       courses: seedCourses,
       materials: seedMaterials,
       questions: seedQuestions,
-      progress: seedProgress
+      progress: seedProgress,
+      studyPlans: []
     };
   }
 
@@ -427,6 +592,21 @@ export class LocalDatabase {
     return this.state.courses;
   }
 
+  public addCourse(course: Course): Course {
+    this.state.courses.push(course);
+    this.save();
+    return course;
+  }
+
+  public deleteCourse(id: string): void {
+    this.state.courses = this.state.courses.filter((c) => c.id !== id);
+    this.state.materials = this.state.materials.filter((m) => m.courseId !== id);
+    this.state.questions = this.state.questions.filter((q) => q.courseId !== id);
+    this.state.progress = this.state.progress.filter((p) => p.courseId !== id);
+    this.state.studyPlans = this.state.studyPlans.filter((s) => s.courseId !== id);
+    this.save();
+  }
+
   public getCourseById(id: string): Course | undefined {
     return this.state.courses.find((c) => c.id === id);
   }
@@ -442,7 +622,18 @@ export class LocalDatabase {
   }
 
   public getQuestions(courseId: string, tier: Tier): Question[] {
-    return this.state.questions.filter((q) => q.courseId === courseId && q.tier === tier);
+    const qList = this.state.questions.filter((q) => q.courseId === courseId && q.tier === tier);
+    if (qList.length === 0) {
+      // Generate default 50 questions if they don't exist
+      const course = this.getCourseById(courseId);
+      if (course) {
+        const generated = generateSeedQuestions(courseId, tier, course.code, course.title);
+        this.state.questions.push(...generated);
+        this.save();
+        return generated;
+      }
+    }
+    return qList;
   }
 
   public saveQuestionsBulk(courseId: string, tier: Tier, questions: Question[]): void {
@@ -582,6 +773,130 @@ export class LocalDatabase {
 
     // Limit to top 5
     return results.slice(0, 5);
+  }
+
+  // --- Study Plan Methods ---
+
+  public getStudyPlans(): StudyPlan[] {
+    this.state.studyPlans = this.state.studyPlans || [];
+    return this.state.studyPlans;
+  }
+
+  public getStudyPlan(userId: string, courseId: string, tier: Tier): StudyPlan | undefined {
+    this.getStudyPlans();
+    return this.state.studyPlans.find(
+      (sp) => sp.userId === userId && sp.courseId === courseId && sp.tier === tier && sp.status === "active"
+    );
+  }
+
+  public createStudyPlan(
+    userId: string,
+    courseId: string,
+    tier: Tier,
+    planType: "blitz" | "sprint" | "three-day" | "weekly"
+  ): StudyPlan {
+    this.getStudyPlans();
+    
+    // Deactivate any existing active plan for this user + course + tier
+    this.state.studyPlans = this.state.studyPlans.filter(
+      (sp) => !(sp.userId === userId && sp.courseId === courseId && sp.tier === tier && sp.status === "active")
+    );
+
+    const questions = this.getQuestions(courseId, tier);
+    const questionIds = questions.map((q) => q.id);
+
+    // Shuffle questionIds to randomize daily distribution
+    const shuffledIds = [...questionIds].sort(() => Math.random() - 0.5);
+
+    let totalDays = 1;
+    if (planType === "sprint") totalDays = 2;
+    else if (planType === "three-day") totalDays = 3;
+    else if (planType === "weekly") totalDays = 7;
+
+    const questionsPerDay: { [day: number]: string[] } = {};
+    for (let day = 1; day <= totalDays; day++) {
+      questionsPerDay[day] = [];
+    }
+
+    // Partition 50 questions into days
+    shuffledIds.forEach((id, index) => {
+      const day = (index % totalDays) + 1;
+      questionsPerDay[day].push(id);
+    });
+
+    const newPlan: StudyPlan = {
+      id: "plan-" + Math.random().toString(36).substring(2, 9),
+      userId,
+      courseId,
+      tier,
+      planType,
+      totalDays,
+      currentDay: 1,
+      completedDays: [],
+      scoresPerDay: {},
+      questionsPerDay,
+      status: "active",
+      startDate: new Date().toISOString()
+    };
+
+    this.state.studyPlans.push(newPlan);
+    this.save();
+    return newPlan;
+  }
+
+  public submitDayProgress(
+    userId: string,
+    courseId: string,
+    tier: Tier,
+    day: number,
+    score: number
+  ): { plan: StudyPlan; cumulativeScore: number; passed: boolean; unlockedNext: boolean; nextTier: Tier | null } {
+    this.getStudyPlans();
+    const plan = this.state.studyPlans.find(
+      (sp) => sp.userId === userId && sp.courseId === courseId && sp.tier === tier && sp.status === "active"
+    );
+
+    if (!plan) {
+      throw new Error("Active study plan not found");
+    }
+
+    plan.scoresPerDay[day] = score;
+    if (!plan.completedDays.includes(day)) {
+      plan.completedDays.push(day);
+    }
+
+    let cumulativeScore = 0;
+    Object.values(plan.scoresPerDay).forEach((s) => {
+      cumulativeScore += s;
+    });
+
+    let passed = false;
+    let unlockedNext = false;
+    let nextTier: Tier | null = null;
+
+    if (plan.completedDays.length === plan.totalDays) {
+      plan.status = "completed";
+      passed = cumulativeScore >= 35; // 70% threshold
+
+      // If they passed the entire plan, submit progress to unlock next tier
+      const result = this.submitProgress(userId, courseId, tier, cumulativeScore);
+      unlockedNext = result.unlockedNext;
+      nextTier = result.nextTier;
+    } else {
+      // Advance to next day
+      plan.currentDay = Math.min(plan.totalDays, day + 1);
+    }
+
+    this.save();
+    return { plan, cumulativeScore, passed, unlockedNext, nextTier };
+  }
+
+  public resetStudyPlan(userId: string, courseId: string, tier: Tier): void {
+    this.getStudyPlans();
+    this.state.studyPlans = this.state.studyPlans.filter(
+      (sp) => !(sp.userId === userId && sp.courseId === courseId && sp.tier === tier && sp.status === "active")
+    );
+    this.save();
   }
 }
 

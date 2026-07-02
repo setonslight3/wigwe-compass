@@ -1,5 +1,5 @@
 {
-  "name": "Compass Guide",
+  "name": "Wigwe Compass",
   "description": "An academic companion and tutor for university students, offering material access, custom tier quizzes, progress tracking, and an interactive Socratic AI tutor.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]

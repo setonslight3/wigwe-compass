@@ -2,6 +2,7 @@ export type Role = "student" | "admin";
 export type Level = "100L" | "200L" | "300L" | "400L" | "500L";
 export type Tier = "easy" | "medium" | "hard";
 export type ProgressStatus = "locked" | "unlocked" | "completed";
+export type QuestionType = "mcq" | "true_false" | "fill_blank" | "short_answer";
 
 export interface User {
   id: string;
@@ -18,6 +19,8 @@ export interface Course {
   title: string;
   department: string;
   level: Level;
+  college?: string; // e.g. "College of Sciences", "College of Engineering", etc.
+  units?: number; // e.g. 2, 3, 4
 }
 
 export interface Material {
@@ -26,15 +29,17 @@ export interface Material {
   fileName: string;
   fileUrl: string;
   fileType: string;
+  week?: number;
 }
 
 export interface Question {
   id: string;
   courseId: string;
   tier: Tier;
+  type?: QuestionType; // Defaults to "mcq" if not specified
   questionText: string;
-  options: string[]; // e.g. ["Option A", "Option B", "Option C", "Option D"]
-  correctAnswer: string; // e.g. "A" or "B" or "C" or "D"
+  options?: string[]; // Optional for fill_blank/short_answer. For true_false: ["True", "False"]
+  correctAnswer: string; // MCQ options like "A", "B"; True/False like "True", "False"; Fill-in-blank correct text; Short-answer keywords/sample
   explanation: string;
 }
 
@@ -44,6 +49,21 @@ export interface Progress {
   tier: Tier;
   score: number;
   status: ProgressStatus;
+}
+
+export interface StudyPlan {
+  id: string;
+  userId: string;
+  courseId: string;
+  tier: Tier;
+  planType: "blitz" | "sprint" | "three-day" | "weekly";
+  totalDays: number;
+  currentDay: number;
+  completedDays: number[];
+  scoresPerDay: { [day: number]: number };
+  questionsPerDay: { [day: number]: string[] }; // Stores question IDs partitioned per day
+  status: "active" | "completed";
+  startDate: string;
 }
 
 export interface ChatMessage {
@@ -59,4 +79,5 @@ export interface DatabaseState {
   materials: Material[];
   questions: Question[];
   progress: Progress[];
+  studyPlans: StudyPlan[];
 }
