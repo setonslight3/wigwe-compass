@@ -643,6 +643,16 @@ async function startServer() {
     });
   }
 
+  // Diagnostic error handler to output stack traces to client response on failure
+  app.use((err: any, req: any, res: any, next: any) => {
+    console.error("[Diagnostic Error]:", err);
+    res.status(500).json({
+      error: "Internal Server Error",
+      message: err.message,
+      stack: err.stack
+    });
+  });
+
   if (!process.env.VERCEL) {
     app.listen(PORT, "0.0.0.0", () => {
       console.log(`Server running on http://0.0.0.0:${PORT}`);
