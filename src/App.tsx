@@ -131,6 +131,7 @@ export default function App() {
 
   // Mobile responsive filters
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   // File upload state
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -1005,6 +1006,15 @@ export default function App() {
                   <GraduationCap className="h-6 w-6" />
                 </div>
                 <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white font-serif">Wigwe Compass</h1>
+                
+                <button
+                  type="button"
+                  onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                  className="hidden lg:flex p-2 text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all cursor-pointer ml-2"
+                  title={isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+                >
+                  {isSidebarCollapsed ? <ChevronRight className="h-4.5 w-4.5" /> : <ChevronLeft className="h-4.5 w-4.5" />}
+                </button>
               </div>
 
               <div className="flex items-center gap-4">
@@ -1043,7 +1053,7 @@ export default function App() {
           <main className="flex-grow max-w-7xl mx-auto w-full px-6 py-8 grid grid-cols-1 lg:grid-cols-4 gap-8 pb-24">
             
             {/* Left Filter Sidebar */}
-            <div className="lg:col-span-1 space-y-6 hidden lg:block">
+            <div className={`lg:col-span-1 space-y-6 hidden ${isSidebarCollapsed ? "lg:hidden" : "lg:block"}`}>
               
               {/* Profile card & Level switch */}
               <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 shadow-xs space-y-4">
@@ -1141,7 +1151,7 @@ export default function App() {
             </div>
 
             {/* Right Course Catalog List */}
-            <div className="lg:col-span-3 space-y-6">
+            <div className={`${isSidebarCollapsed ? "lg:col-span-4" : "lg:col-span-3"} space-y-6`}>
               
               {/* Mobile Filter Trigger Tags */}
               <div className="lg:hidden flex flex-col gap-3">

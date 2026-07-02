@@ -33,7 +33,7 @@ async function generateAiQuestionsForCourse(courseCode: string, courseTitle: str
   }
 
   try {
-    console.log(`[AI Engine] Invoking Gemini-3.5-Flash to generate questions for ${courseCode} (${tier})...`);
+    console.log(`[AI Engine] Invoking Gemini-2.5-Flash to generate questions for ${courseCode} (${tier})...`);
     
     // Choose appropriate question types based on the blueprint difficulty specification
     let typesPrompt = "";
@@ -66,7 +66,7 @@ async function generateAiQuestionsForCourse(courseCode: string, courseTitle: str
        - "explanation": string (1-2 sentences explanation)`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: "gemini-2.5-flash",
       contents: `Generate 10 distinct, highly accurate academic questions for the course ${courseTitle} (${courseCode}) at ${level} level for the ${tier} difficulty tier.`,
       config: {
         systemInstruction,
@@ -562,7 +562,7 @@ ${materialsContext || "No materials uploaded yet."}`;
 
     // Call Gemini API
     const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: "gemini-2.5-flash",
       contents,
       config: {
         systemInstruction,

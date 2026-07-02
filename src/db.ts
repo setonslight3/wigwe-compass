@@ -355,14 +355,13 @@ export class LocalDatabase {
 
     try {
       const res = await fetch(`${url}/rest/v1/compass_store?id=eq.1`, {
-        method: "POST",
+        method: "PATCH",
         headers: {
           "apikey": key,
           "Authorization": `Bearer ${key}`,
-          "Content-Type": "application/json",
-          "Prefer": "resolution=merge-duplicates"
+          "Content-Type": "application/json"
         },
-        body: JSON.stringify({ id: 1, state: this.state })
+        body: JSON.stringify({ state: this.state })
       });
       if (!res.ok) {
         const errText = await res.text();
