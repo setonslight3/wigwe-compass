@@ -747,7 +747,22 @@ export class LocalDatabase {
 
   public async addMaterial(material: Material): Promise<Material> {
     if (process.env.SUPABASE_URL) {
-      await this.supabaseRequest("materials", "POST", undefined, material);
+      try {
+        await this.supabaseRequest("materials", "POST", undefined, material);
+      } catch (err: any) {
+        const errMsg = String(err.message || JSON.stringify(err) || err);
+        if (errMsg.toLowerCase().includes("content") && (errMsg.toLowerCase().includes("column") || errMsg.toLowerCase().includes("42703") || errMsg.toLowerCase().includes("42501"))) {
+          console.warn("\n[Database Warning] Supabase 'materials' table is missing the 'content' column.");
+          console.warn("Please execute this SQL in your Supabase SQL Editor to enable AI file summaries:");
+          console.warn("  ALTER TABLE materials ADD COLUMN IF NOT EXISTS content TEXT;\n");
+          
+          // Strip content and retry
+          const { content, ...rest } = material;
+          await this.supabaseRequest("materials", "POST", undefined, rest);
+        } else {
+          throw err;
+        }
+      }
       return material;
     }
     this.state.materials.push(material);
