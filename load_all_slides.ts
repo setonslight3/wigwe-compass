@@ -18,16 +18,6 @@ const SCIENCE_COMPUTING_PROGRAMS = [
   "Information and Communications Technology"
 ];
 
-const ALL_PROGRAMS = [
-  "BSc Data Science", "BSc Mathematics", "BSc Computer Science", "BSc Cybersecurity",
-  "BSc Software Engineering", "BSc Forensics Science", "BSc Robotics (Artificial Intelligence)",
-  "Information and Communications Technology", "BEng Electrical Engineering", "BEng Mechanical Engineering",
-  "BEng Computer Engineering", "BA Theatre Arts", "BA Fine Arts", "BSc Film and Screen Studies",
-  "BA/BSc Media and Communications", "BSc Economics", "BSc Business Administration",
-  "BSc Innovation and Social Entrepreneurship", "BSc Accounting and Data Analytics",
-  "BSc Finance", "BSc Finance and Financial Technology"
-];
-
 // Helper to parse week from file name
 function parseWeekFromFileName(fileName: string): number | undefined {
   const name = fileName.toLowerCase();
@@ -68,16 +58,8 @@ async function run() {
   const isSupabase = !!process.env.SUPABASE_URL;
   console.log(`Running in ${isSupabase ? "Supabase Cloud" : "Local db.json"} mode.`);
 
-  // Define target courses
+  // Define target courses (Exactly 7 courses)
   const targetCourses: { [code: string]: Omit<Course, "id"> } = {
-    "COS 101": {
-      code: "COS 101",
-      title: "Introduction to Computer Science & Programming",
-      department: SCIENCE_COMPUTING_PROGRAMS.join(", "),
-      level: "100L",
-      college: "Science and Computing",
-      units: 3
-    },
     "COS 102": {
       code: "COS 102",
       title: "Problem Solving and Algorithms",
@@ -109,14 +91,6 @@ async function run() {
       college: "Science and Computing",
       units: 3
     },
-    "PHY 104": {
-      code: "PHY 104",
-      title: "General Physics IV: Modern Physics & Optics",
-      department: SCIENCE_COMPUTING_PROGRAMS.join(", "),
-      level: "100L",
-      college: "Science and Computing",
-      units: 3
-    },
     "PHY 107": {
       code: "PHY 107",
       title: "General Physics Laboratory I",
@@ -128,7 +102,7 @@ async function run() {
     "GST 112": {
       code: "GST 112",
       title: "Nigerian Peoples and Culture",
-      department: ALL_PROGRAMS.join(", "),
+      department: "All Programs",
       level: "100L",
       college: "College of Arts",
       units: 2
@@ -136,25 +110,49 @@ async function run() {
     "WU 100": {
       code: "WU 100",
       title: "Wigwe University Seminar & Resilience",
-      department: ALL_PROGRAMS.join(", "),
+      department: "All Programs",
+      level: "100L",
+      college: "College of Arts",
+      units: 2
+    },
+    "WUGST 112": {
+      code: "WUGST 112",
+      title: "Physical Education",
+      department: "All Programs",
       level: "100L",
       college: "College of Arts",
       units: 2
     }
   };
 
-  // Get current courses to map or create them
+  // Get current courses to clean up deprecated ones
   const currentCourses = await db.getCourses();
-  const courseMap: { [code: string]: Course } = {};
+  const targetIds = Object.keys(targetCourses).map(code => "course-" + code.replace(/\s+/g, "").toLowerCase());
 
+  console.log("Cleaning up deprecated/old courses from catalog...");
+  for (const c of currentCourses) {
+    if (!targetIds.includes(c.id)) {
+      console.log(`Removing deprecated course: ${c.code} (${c.id})...`);
+      try {
+        await db.deleteCourse(c.id);
+      } catch (err) {
+        console.error(`Failed to delete course ${c.code}:`, err);
+      }
+    }
+  }
+
+  // Create or retrieve the 7 target courses
+  const courseMap: { [code: string]: Course } = {};
   for (const code of Object.keys(targetCourses)) {
-    const existing = currentCourses.find(c => c.code.toUpperCase() === code.toUpperCase());
+    const courseId = "course-" + code.replace(/\s+/g, "").toLowerCase();
+    
+    const existing = await db.getCourseById(courseId);
+
     if (existing) {
-      console.log(`Course ${code} already exists.`);
+      console.log(`Course ${code} exists.`);
       courseMap[code] = existing;
     } else {
-      console.log(`Creating new course: ${code}...`);
-      const courseId = "course-" + code.replace(/\s+/g, "").toLowerCase();
+      console.log(`Creating course: ${code}...`);
       const courseObj = await db.addCourse({
         id: courseId,
         ...targetCourses[code]
@@ -163,11 +161,11 @@ async function run() {
     }
   }
 
-  const importedMaterialsList: Material[] = [];
-  let uploadCount = 0;
-  
   // Scan subfolders
   const subfolders = fs.readdirSync(SLIDES_DIR);
+  const importedMaterialsList: Material[] = [];
+  let uploadCount = 0;
+
   for (const folder of subfolders) {
     const folderPath = path.join(SLIDES_DIR, folder);
     if (!fs.statSync(folderPath).isDirectory()) continue;
@@ -187,18 +185,18 @@ async function run() {
       const lowerFile = file.toLowerCase();
 
       if (folder === "COS") {
-        if (lowerFile.includes("cos101")) targetCourse = courseMap["COS 101"];
-        else targetCourse = courseMap["COS 102"];
+        targetCourse = courseMap["COS 102"]; // Only COS 102 exists
       } else if (folder === "MTH") {
         targetCourse = courseMap["MTH 101"];
       } else if (folder === "PHY") {
-        if (lowerFile.includes("phy104") || lowerFile.includes("phy 104")) targetCourse = courseMap["PHY 104"];
-        else if (lowerFile.includes("phy107") || lowerFile.includes("phy 107")) targetCourse = courseMap["PHY 107"];
-        else targetCourse = courseMap["PHY 102"];
-      } else if (folder === "GST" || folder === "GST 112" || folder === "WU_GST 112") {
+        if (lowerFile.includes("phy107") || lowerFile.includes("phy 107")) targetCourse = courseMap["PHY 107"];
+        else targetCourse = courseMap["PHY 102"]; // Maps PHY 104 and PHY 102 to PHY 102
+      } else if (folder === "GST" || folder === "GST 112") {
         targetCourse = courseMap["GST 112"];
       } else if (folder === "WU 100") {
         targetCourse = courseMap["WU 100"];
+      } else if (folder === "WU_GST 112") {
+        targetCourse = courseMap["WUGST 112"];
       }
 
       if (!targetCourse) {

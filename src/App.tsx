@@ -116,6 +116,7 @@ export default function App() {
   const [adminBulkCount, setAdminBulkCount] = useState(50);
   const [adminBulkResponse, setAdminBulkResponse] = useState("");
   const [adminBulkError, setAdminBulkError] = useState("");
+  const [adminQuestionsJson, setAdminQuestionsJson] = useState("");
 
   // Dynamic Course Creator State
   const [customCourseModalOpen, setCustomCourseModalOpen] = useState(false);
@@ -684,14 +685,30 @@ export default function App() {
       return;
     }
 
-    const questionPayload = [];
-    for (let i = 1; i <= adminBulkCount; i++) {
-      questionPayload.push({
-        questionText: `Admin custom uploaded sample question #${i} testing critical validation rules.`,
-        options: ["Option A (Correct)", "Option B", "Option C", "Option D"],
-        correctAnswer: "A",
-        explanation: "Detail explanation validating exact admin tier requirements.",
-      });
+    let questionPayload = [];
+
+    if (adminQuestionsJson.trim()) {
+      try {
+        const parsed = JSON.parse(adminQuestionsJson);
+        if (!Array.isArray(parsed)) {
+          setAdminBulkError("Invalid JSON: Root must be a JSON array of questions.");
+          return;
+        }
+        questionPayload = parsed;
+      } catch (err: any) {
+        setAdminBulkError("JSON Parsing Error: " + err.message);
+        return;
+      }
+    } else {
+      // Simulation fallback
+      for (let i = 1; i <= adminBulkCount; i++) {
+        questionPayload.push({
+          questionText: `Admin custom uploaded sample question #${i} testing critical validation rules.`,
+          options: ["Option A (Correct)", "Option B", "Option C", "Option D"],
+          correctAnswer: "A",
+          explanation: "Detail explanation validating exact admin tier requirements.",
+        });
+      }
     }
 
     try {
@@ -707,7 +724,8 @@ export default function App() {
 
       const data = await res.json();
       if (res.ok) {
-        setAdminBulkResponse(data.message || `Uploaded exactly ${adminBulkCount} questions successfully!`);
+        setAdminBulkResponse(data.message || `Uploaded exactly ${questionPayload.length} questions successfully!`);
+        setAdminQuestionsJson(""); // Clear JSON on success
       } else {
         setAdminBulkError(data.error || "Validation error occurred.");
       }
@@ -2652,6 +2670,21 @@ export default function App() {
                         required
                       />
                     </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
+                      Paste Custom Questions JSON (Optional)
+                    </label>
+                    <textarea
+                      placeholder='[{"questionText": "Question text?", "options": ["A", "B", "C", "D"], "correctAnswer": "A", "explanation": "Why...", "type": "mcq"}, ...]'
+                      value={adminQuestionsJson}
+                      onChange={(e) => setAdminQuestionsJson(e.target.value)}
+                      className="w-full h-28 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-805 rounded-xl px-3 py-2.5 text-xs focus:outline-none text-slate-900 dark:text-white font-mono resize-y"
+                    />
+                    <span className="text-[9px] text-slate-400 block mt-1 leading-normal">
+                      Leave empty to auto-generate 50 simulated questions. Or paste a JSON array of questions containing: questionText, options (array of strings or null), correctAnswer, explanation, and type (optional).
+                    </span>
                   </div>
 
                   <button

@@ -431,7 +431,7 @@ app.post("/api/study-plans/submit-day", asyncHandler(async (req, res) => {
 
     // Load question objects for the day
     const allQuestions = await db.getQuestions(courseId, tier);
-    const dayQuestions = dayQuestionIds.map((id) => allQuestions.find((q) => q.id === id)).filter(Boolean) as Question[];
+    const dayQuestions = allQuestions.filter((q) => dayQuestionIds.includes(q.id));
 
     let correctCount = 0;
     const results = dayQuestions.map((q, idx) => {
