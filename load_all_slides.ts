@@ -184,22 +184,22 @@ async function run() {
       let targetCourse: Course | undefined;
       const lowerFile = file.toLowerCase();
 
-      if (folder === "COS") {
+      if (folder.startsWith("COS")) {
         targetCourse = courseMap["COS 102"]; // Only COS 102 exists
-      } else if (folder === "MTH") {
+      } else if (folder.startsWith("MTH")) {
         targetCourse = courseMap["MTH 102"];
-      } else if (folder === "PHY") {
-        if (lowerFile.includes("phy107") || lowerFile.includes("phy 107") || lowerFile.includes("phy108") || lowerFile.includes("phy 108")) {
+      } else if (folder.startsWith("PHY")) {
+        if (lowerFile.includes("phy107") || lowerFile.includes("phy 107") || lowerFile.includes("phy108") || lowerFile.includes("phy 108") || folder.includes("108")) {
           targetCourse = courseMap["PHY 108"];
         } else {
           targetCourse = courseMap["PHY 104"];
         }
-      } else if (folder === "GST" || folder === "GST 112") {
-        targetCourse = courseMap["GST 112"];
-      } else if (folder === "WU 100") {
-        targetCourse = courseMap["WU 100"];
-      } else if (folder === "WU_GST 112") {
+      } else if (folder.startsWith("WU_GST") || folder.startsWith("WUGST")) {
         targetCourse = courseMap["WUGST 112"];
+      } else if (folder.startsWith("GST")) {
+        targetCourse = courseMap["GST 112"];
+      } else if (folder.startsWith("WU")) {
+        targetCourse = courseMap["WU 100"];
       }
 
       if (!targetCourse) {
