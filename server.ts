@@ -237,8 +237,13 @@ app.get("/api/courses", asyncHandler(async (req, res) => {
   }
   if (department) {
     courses = courses.filter((c) => {
+      const lowerDept = (department as string).toLowerCase();
+      const courseDeptLower = c.department.toLowerCase();
+      if (courseDeptLower.includes("all programs") || courseDeptLower.includes("all departments")) {
+        return true;
+      }
       const depts = c.department.split(",").map((d) => d.trim().toLowerCase());
-      return depts.includes((department as string).toLowerCase());
+      return depts.includes(lowerDept);
     });
   }
   if (college) {
@@ -643,6 +648,22 @@ app.post("/api/admin/import-metadata", asyncHandler(async (req, res) => {
   const { courses, materials, pin } = req.body;
   if (pin !== "1234") {
     return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  // Clean up deprecated courses in Supabase that are not in the import payload
+  if (process.env.SUPABASE_URL && Array.isArray(courses)) {
+    const liveCourses = await db.getCourses();
+    const importedIds = courses.map((c: any) => c.id);
+    for (const c of liveCourses) {
+      if (!importedIds.includes(c.id)) {
+        try {
+          await db.deleteCourse(c.id);
+          console.log(`[Admin Import] Deleted deprecated course in Supabase: ${c.code}`);
+        } catch (err) {
+          console.error(`Error deleting deprecated course ${c.id}:`, err);
+        }
+      }
+    }
   }
 
   // Clear existing materials for the imported courses to avoid duplicate primary key errors
