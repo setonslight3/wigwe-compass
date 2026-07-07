@@ -1295,7 +1295,7 @@ export default function App() {
                         <div className="space-y-4 flex-1 min-w-0">
                           <div className="space-y-1.5">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="bg-slate-100 dark:bg-slate-805 text-slate-750 dark:text-slate-300 text-[10px] font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-md">
+                              <span className="bg-slate-100 dark:bg-slate-200 text-slate-900 dark:text-slate-950 text-[10px] font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-md">
                                 {course.code}
                               </span>
                               <span className="text-[10px] font-bold text-slate-400">
@@ -1515,7 +1515,7 @@ export default function App() {
                   {isDarkMode ? <Sun className="h-5 w-5 text-amber-400" /> : <Moon className="h-5 w-5" />}
                 </button>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded text-slate-750 dark:text-slate-300">{selectedCourse.code}</span>
+                  <span className="text-xs font-bold bg-slate-100 dark:bg-slate-200 px-2.5 py-1 rounded text-slate-900 dark:text-slate-955">{selectedCourse.code}</span>
                 </div>
               </div>
             </div>
