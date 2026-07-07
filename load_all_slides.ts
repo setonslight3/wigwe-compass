@@ -68,9 +68,9 @@ async function run() {
       college: "Science and Computing",
       units: 3
     },
-    "MTH 101": {
-      code: "MTH 101",
-      title: "General Mathematics I: Algebra & Calculus",
+    "MTH 102": {
+      code: "MTH 102",
+      title: "General Mathematics II: Calculus",
       department: [
         "BSc Mathematics", 
         "BSc Computer Science", 
@@ -83,17 +83,17 @@ async function run() {
       college: "Science and Computing",
       units: 3
     },
-    "PHY 102": {
-      code: "PHY 102",
+    "PHY 104": {
+      code: "PHY 104",
       title: "General Physics II: Electricity and Magnetism",
       department: SCIENCE_COMPUTING_PROGRAMS.join(", "),
       level: "100L",
       college: "Science and Computing",
       units: 3
     },
-    "PHY 107": {
-      code: "PHY 107",
-      title: "General Physics Laboratory I",
+    "PHY 108": {
+      code: "PHY 108",
+      title: "General Physics Laboratory II",
       department: SCIENCE_COMPUTING_PROGRAMS.join(", "),
       level: "100L",
       college: "Science and Computing",
@@ -187,10 +187,13 @@ async function run() {
       if (folder === "COS") {
         targetCourse = courseMap["COS 102"]; // Only COS 102 exists
       } else if (folder === "MTH") {
-        targetCourse = courseMap["MTH 101"];
+        targetCourse = courseMap["MTH 102"];
       } else if (folder === "PHY") {
-        if (lowerFile.includes("phy107") || lowerFile.includes("phy 107")) targetCourse = courseMap["PHY 107"];
-        else targetCourse = courseMap["PHY 102"]; // Maps PHY 104 and PHY 102 to PHY 102
+        if (lowerFile.includes("phy107") || lowerFile.includes("phy 107") || lowerFile.includes("phy108") || lowerFile.includes("phy 108")) {
+          targetCourse = courseMap["PHY 108"];
+        } else {
+          targetCourse = courseMap["PHY 104"];
+        }
       } else if (folder === "GST" || folder === "GST 112") {
         targetCourse = courseMap["GST 112"];
       } else if (folder === "WU 100") {
