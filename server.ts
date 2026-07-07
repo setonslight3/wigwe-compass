@@ -522,7 +522,16 @@ app.post("/api/ai/tutor", asyncHandler(async (req, res) => {
       return res.status(404).json({ error: "Course or User not found" });
     }
 
-    const materialsContext = materials.map((m) => `- ${m.fileName}`).join("\n");
+    const materialsContext = materials.map((m) => {
+      let desc = `--- FILE: ${m.fileName} (Week: ${m.week || "General"}) ---`;
+      if (m.content) {
+        desc += `\nCONTENT:\n${m.content}`;
+      } else {
+        desc += `\n(No text content extracted)`;
+      }
+      return desc;
+    }).join("\n\n");
+
     const userLevel = user.level || "400L";
     const userDept = user.department || "Computer Science";
     const userName = user.name || "Student";
@@ -554,13 +563,15 @@ app.post("/api/ai/tutor", asyncHandler(async (req, res) => {
     
     The course being discussed is: ${courseCode} - ${courseTitle}.
     
-    Available uploaded course files:
+    Here is the exact text content of all uploaded course slides and reference files for this course:
+    ======================================================================
     ${materialsContext}
+    ======================================================================
     
     INSTRUCTIONS:
     1. Adopt a Socratic teaching style: DO NOT directly give the student the final answers to their homework or study questions. Instead, guide them with helpful, progressive hints, asking key questions that lead them to deduce the answer themselves.
-    2. Be encouraging, intellectually stimulating, and highly supportive.
-    3. Ground your academic knowledge in the listed course files, but feel free to explain broader foundational concepts in computer science, business, arts, etc.
+    2. Ground your academic knowledge strictly in the provided course files content. When the student asks about a specific week or slide, read and summarize/explain it using the exact slide information from these files.
+    3. If the student asks for a summary of a specific week, read the file contents marked for that week above and summarize them clearly but Socratically (e.g. outline the key sub-topics and ask them which one they want to explore first, rather than giving a massive essay of answers).
     4. Keep answers relatively concise (1-2 paragraphs) to keep the chat engaging.`;
 
     // Check if GEMINI_API_KEY is dummy

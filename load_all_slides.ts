@@ -3,8 +3,25 @@ import dotenv from "dotenv";
 import fs from "fs";
 import path from "path";
 import { Course, Material, Tier } from "./src/types.js";
+import officeParser from "officeparser";
 
 dotenv.config();
+
+async function extractText(filePath: string): Promise<string> {
+  try {
+    const ext = path.extname(filePath).toLowerCase();
+    if (![".docx", ".pptx", ".ppt", ".pdf", ".rtf", ".csv", ".html", ".md"].includes(ext)) {
+      return "";
+    }
+    const ast = await officeParser.parseOffice(filePath);
+    if (!ast) return "";
+    const text = typeof ast.toText === "function" ? ast.toText() : String(ast);
+    return text.substring(0, 80000).trim();
+  } catch (err) {
+    console.error(`Warning: Failed to extract text from ${path.basename(filePath)}:`, err);
+    return "";
+  }
+}
 
 const SLIDES_DIR = "C:/Users/Hello/OneDrive/Documents/ALL slides";
 
@@ -211,8 +228,11 @@ async function run() {
       const fileType = [".ppt", ".pptx"].includes(ext) ? "ppt" : ext === ".mp4" ? "video" : "pdf";
       const fileUrl = `/uploads/${encodeURIComponent(folder)}/${encodeURIComponent(file)}`;
 
+      // Extract slide content
+      const content = await extractText(filePath);
+
       const materialId = "mat-" + Math.random().toString(36).substring(2, 9);
-      console.log(`Registering material: [${targetCourse.code}] ${file} (Week: ${week || "General"})`);
+      console.log(`Registering material: [${targetCourse.code}] ${file} (Week: ${week || "General"}) ${content ? "[Extracted text]" : ""}`);
 
       const matObj = {
         id: materialId,
@@ -220,7 +240,8 @@ async function run() {
         fileName: file,
         fileUrl,
         fileType,
-        week
+        week,
+        content
       };
 
       await db.addMaterial(matObj);

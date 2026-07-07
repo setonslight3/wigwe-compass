@@ -32,6 +32,7 @@ export interface Material {
   fileUrl: string;
   fileType: string;
   week?: number;
+  content?: string;
 }
 
 export interface Question {
