@@ -639,13 +639,53 @@ app.get("/api/debug/status", asyncHandler(async (req, res) => {
   });
 }));
 
+app.post("/api/admin/import-metadata", asyncHandler(async (req, res) => {
+  const { courses, materials, pin } = req.body;
+  if (pin !== "1234") {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  // Clear existing materials for the imported courses to avoid duplicate primary key errors
+  if (process.env.SUPABASE_URL && Array.isArray(materials) && materials.length > 0) {
+    const courseIds = Array.from(new Set(materials.map((m: any) => m.courseId)));
+    for (const cid of courseIds) {
+      try {
+        await db.supabaseRequest("materials", "DELETE", `courseId=eq.${encodeURIComponent(cid as string)}`);
+      } catch (err) {
+        console.error(`Error clearing materials for course ${cid}:`, err);
+      }
+    }
+  }
+
+  // Insert courses
+  for (const course of courses) {
+    const existing = await db.getCourseById(course.id);
+    if (!existing) {
+      await db.addCourse(course);
+    }
+  }
+
+  // Insert materials
+  for (const mat of materials) {
+    await db.addMaterial(mat);
+  }
+
+  return res.json({ success: true, coursesImported: courses.length, materialsImported: materials.length });
+}));
+
 // --- VITE MIDDLEWARE SETUP ---
 async function startServer() {
   // Load database state from Supabase if configured, otherwise local file fallback
   await db.initialize();
 
   // Serve uploads folder statically before Vite middleware
-  app.use("/uploads", express.static(process.env.VERCEL ? "/tmp/uploads" : path.join(process.cwd(), "uploads")));
+  app.use("/uploads", express.static(
+    process.env.VERCEL 
+      ? "/tmp/uploads" 
+      : fs.existsSync("C:/Users/Hello/OneDrive/Documents/ALL slides")
+        ? "C:/Users/Hello/OneDrive/Documents/ALL slides"
+        : path.join(process.cwd(), "uploads")
+  ));
 
   if (process.env.NODE_ENV !== "production") {
     const { createServer: createViteServer } = await import("vite");

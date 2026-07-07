@@ -239,7 +239,7 @@ export class LocalDatabase {
     }
   }
 
-  private async supabaseRequest(table: string, method: string = "GET", queryParams?: string, body?: any): Promise<any> {
+  public async supabaseRequest(table: string, method: string = "GET", queryParams?: string, body?: any): Promise<any> {
     const supabaseUrl = process.env.SUPABASE_URL?.replace(/\/$/, "");
     const supabaseKey = process.env.SUPABASE_ANON_KEY;
 
