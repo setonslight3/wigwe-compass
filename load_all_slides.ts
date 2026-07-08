@@ -252,27 +252,46 @@ async function run() {
 
   console.log(`\nSUCCESS: Completed importing ${uploadCount} slides to local database!`);
   
-  console.log("\nSyncing metadata to production serverless database...");
+  console.log("\nSyncing courses to production database...");
   try {
-    const response = await fetch("https://wigwe-compass.vercel.app/api/admin/import-metadata", {
+    const courseSyncResponse = await fetch("https://wigwe-compass.vercel.app/api/admin/import-metadata", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         pin: "1234",
         courses: Object.values(courseMap),
-        materials: importedMaterialsList
+        materials: []
       })
     });
-    if (response.ok) {
-      const resJson = await response.json();
-      console.log(`SUCCESS: Successfully synchronized to production Supabase!`, resJson);
+    if (courseSyncResponse.ok) {
+      console.log("SUCCESS: Courses synchronized.");
     } else {
-      console.error(`ERROR: Failed to synchronize to production:`, await response.text());
+      console.error("ERROR: Course sync failed:", await courseSyncResponse.text());
+      return;
     }
+
+    console.log("\nSyncing slide materials one-by-one to avoid Vercel payload limits...");
+    let syncedMaterialsCount = 0;
+    for (const mat of importedMaterialsList) {
+      const matResponse = await fetch("https://wigwe-compass.vercel.app/api/admin/import-metadata", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pin: "1234",
+          courses: [],
+          materials: [mat]
+        })
+      });
+      if (matResponse.ok) {
+        syncedMaterialsCount++;
+        process.stdout.write(`\rProgress: Synced ${syncedMaterialsCount}/${importedMaterialsList.length} files...`);
+      } else {
+        console.error(`\nERROR: Failed to sync slide ${mat.fileName}:`, await matResponse.text());
+      }
+    }
+    console.log(`\nSUCCESS: Upload completed! Synchronized ${syncedMaterialsCount} materials to production!`);
   } catch (err) {
-    console.error(`ERROR: Failed to connect to production server for sync:`, err);
+    console.error(`\nERROR: Failed to connect to production server for sync:`, err);
   }
 }
 

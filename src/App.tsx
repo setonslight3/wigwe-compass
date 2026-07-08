@@ -2905,64 +2905,64 @@ export default function App() {
               </div>
 
               {/* Document contents (Iframe for uploaded files or Simulated for mock ones) */}
-              <div className="flex-grow overflow-hidden bg-slate-100 dark:bg-slate-950">
-                {activeViewerMaterial.fileUrl.startsWith("/uploads/") || activeViewerMaterial.fileUrl.endsWith(".pdf") ? (
+              <div className="flex-grow overflow-hidden bg-slate-100 dark:bg-slate-955">
+                {activeViewerMaterial.content ? (
+                  <div className="w-full h-full overflow-y-auto p-6 space-y-6 leading-relaxed font-sans bg-slate-50 dark:bg-slate-950">
+                    <div className="max-w-2xl mx-auto bg-white dark:bg-slate-900 p-8 sm:p-12 rounded-xl shadow-md border border-slate-200 dark:border-slate-800 space-y-6 select-text">
+                      <div className="text-center border-b border-slate-100 dark:border-slate-800 pb-4">
+                        <span className="text-[10px] font-bold text-slate-500 tracking-widest uppercase">Slide Content Preview</span>
+                        <h1 className="text-lg font-bold text-slate-900 dark:text-white mt-1">{activeViewerMaterial.fileName}</h1>
+                        <p className="text-xs text-slate-400 mt-1">Course: {selectedCourse?.code} • Week {activeViewerMaterial.week || "General"}</p>
+                      </div>
+                      
+                      <div className="text-xs sm:text-sm text-slate-800 dark:text-slate-200 whitespace-pre-wrap leading-relaxed">
+                        {activeViewerMaterial.content}
+                      </div>
+
+                      <div className="pt-6 border-t border-slate-100 dark:border-slate-800 text-center">
+                        <a 
+                          href={activeViewerMaterial.fileUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-705 text-white text-xs font-bold rounded-xl shadow-md transition-all cursor-pointer"
+                        >
+                          Open Raw Reference File
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                ) : activeViewerMaterial.fileType === "video" ? (
+                  <div className="w-full h-full flex items-center justify-center bg-slate-950">
+                    <video 
+                      src={activeViewerMaterial.fileUrl} 
+                      controls 
+                      className="max-w-full max-h-full"
+                    />
+                  </div>
+                ) : activeViewerMaterial.fileUrl.endsWith(".pdf") ? (
                   <iframe 
                     src={activeViewerMaterial.fileUrl} 
                     className="w-full h-full border-none"
                     title={activeViewerMaterial.fileName}
                   />
                 ) : (
-                  <div className="w-full h-full overflow-y-auto p-6 space-y-6 leading-relaxed font-serif">
-                    <div className="max-w-xl mx-auto bg-white dark:bg-slate-900 p-8 sm:p-12 rounded-xl shadow-md border border-slate-200 dark:border-slate-805 space-y-6">
-                      <div className="text-center border-b border-slate-100 dark:border-slate-800 pb-4">
-                        <span className="text-[10px] font-bold text-indigo-500 tracking-widest uppercase">WIGWE UNIVERSITY CURRICULUM</span>
-                        <h1 className="text-xl font-bold text-slate-900 dark:text-white mt-1">{selectedCourse?.title} Study Context</h1>
-                        <p className="text-xs text-slate-400 mt-1 font-sans">Reference standard • Level {currentUser?.level}</p>
+                  <div className="w-full h-full flex flex-col items-center justify-center p-6 bg-slate-50 dark:bg-slate-950 text-center">
+                    <div className="max-w-md bg-white dark:bg-slate-900 p-8 rounded-2xl shadow-lg border border-slate-200 dark:border-slate-800 space-y-6">
+                      <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto text-slate-400">
+                        <FileText className="h-8 w-8" />
                       </div>
-
-                      {selectedCourse?.code === "ECO401" ? (
-                        <>
-                          <h3 className="text-sm font-bold text-slate-900 dark:text-white font-sans">Chapter 1: Fiscal Policy and Stabilisation Framework</h3>
-                          <p className="text-xs leading-relaxed">
-                            In developing economies like Nigeria, fiscal policy plays a double role. It not only finances crucial public infrastructure but also stabilizes aggregate supply during resource-dependent cycle fluctuations.
-                          </p>
-                          <p className="text-xs leading-relaxed">
-                            The Multiplier Effect occurs when the first cycle of public spending results in consecutive consumer and investment spending, shifting the Aggregate Demand (AD) curves outwards. However, the crowding-out effect might occur if public spending drives interest rates higher, hindering local private investments.
-                          </p>
-                        </>
-                      ) : selectedCourse?.code === "CSC401" ? (
-                        <>
-                          <h3 className="text-sm font-bold text-slate-900 dark:text-white font-sans">Module 4: Dynamic Programming and Optimisation</h3>
-                          <p className="text-xs leading-relaxed">
-                            Dynamic programming solves complex problems by breaking them down into simpler subproblems. It is applicable to problems exhibiting properties of overlapping subproblems and optimal substructure.
-                          </p>
-                          <p className="text-xs leading-relaxed">
-                            Memoization is the top-down approach where we recursively solve subproblems and store their results in a lookup table. Tabulation is the bottom-up approach that iteratively fills a table starting from the baseline conditions.
-                          </p>
-                        </>
-                      ) : (
-                        <>
-                          <h3 className="text-sm font-bold text-slate-900 dark:text-white font-sans">Syllabus Reference Outline</h3>
-                          <p className="text-xs leading-relaxed">
-                            This syllabus document outlines critical methodologies, theories, and concepts related to {selectedCourse?.title}. Focus on identifying Socratic linkages between the theory and structural practice quizzes.
-                          </p>
-                        </>
-                      )}
-
-                      <div className="p-4 bg-slate-50 dark:bg-slate-950 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 text-center font-sans space-y-2">
-                        <p className="text-xs text-slate-500 font-bold">Ready to test your comprehension?</p>
-                        <button 
-                          onClick={() => {
-                            setActiveViewerMaterial(null);
-                            handleStartTier("easy");
-                          }}
-                          className="inline-flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white font-bold px-4 py-2 rounded-lg text-xs cursor-pointer"
-                        >
-                          Start Quiz Session
-                          <ArrowRight className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
+                      <h4 className="text-sm font-bold text-slate-900 dark:text-white">{activeViewerMaterial.fileName}</h4>
+                      <p className="text-xs text-slate-505 leading-normal">
+                        To view this slide deck or document, please download it to your device or open it in a new tab.
+                      </p>
+                      <a 
+                        href={activeViewerMaterial.fileUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 px-6 py-3 bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-705 text-white text-xs font-bold rounded-xl shadow-md transition-all cursor-pointer"
+                      >
+                        Download / Open Document
+                      </a>
                     </div>
                   </div>
                 )}
