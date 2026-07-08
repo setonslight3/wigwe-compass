@@ -279,7 +279,7 @@ app.get("/api/courses/:id", asyncHandler(async (req, res) => {
 }));
 
 app.post("/api/courses/create", asyncHandler(async (req, res) => {
-  const { code, title, department, college, units, level, userId } = req.body;
+  const { code, title, department, college, units, level, userId, lecturer } = req.body;
   if (!code || !title || !department || !college || !units) {
     return res.status(400).json({ error: "code, title, department, college, and units are required" });
   }
@@ -307,7 +307,8 @@ app.post("/api/courses/create", asyncHandler(async (req, res) => {
     department,
     level: level || "400L",
     college,
-    units: Number(units)
+    units: Number(units),
+    lecturer: lecturer || ""
   });
 
   // Pre-generate questions for easy tier in background if API key is active
@@ -678,8 +679,8 @@ app.post("/api/admin/import-metadata", asyncHandler(async (req, res) => {
   }
 
   // Clear existing materials for the imported courses to avoid duplicate primary key errors
-  if (process.env.SUPABASE_URL && Array.isArray(materials) && materials.length > 0) {
-    const courseIds = Array.from(new Set(materials.map((m: any) => m.courseId)));
+  if (process.env.SUPABASE_URL && req.body.clearMaterials && Array.isArray(courses)) {
+    const courseIds = courses.map((c: any) => c.id);
     for (const cid of courseIds) {
       try {
         await db.supabaseRequest("materials", "DELETE", `courseId=eq.${encodeURIComponent(cid as string)}`);

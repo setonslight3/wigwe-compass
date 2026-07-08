@@ -126,6 +126,7 @@ export default function App() {
   const [customCollege, setCustomCollege] = useState("Science and Computing");
   const [customUnits, setCustomUnits] = useState(3);
   const [customLevel, setCustomLevel] = useState<Level>("400L");
+  const [customLecturer, setCustomLecturer] = useState("");
   const [selectedCustomPrograms, setSelectedCustomPrograms] = useState<string[]>([]);
   const [isGeneratingCourse, setIsGeneratingCourse] = useState(false);
   const [customCourseError, setCustomCourseError] = useState("");
@@ -489,6 +490,7 @@ export default function App() {
           units: customUnits,
           level: customLevel,
           userId: currentUser?.id,
+          lecturer: customLecturer
         }),
       });
 
@@ -498,6 +500,7 @@ export default function App() {
         setCustomCode("");
         setCustomTitle("");
         setCustomLevel("400L");
+        setCustomLecturer("");
         setSelectedCustomPrograms([]);
         fetchCourses();
         // Select newly created course
@@ -1527,9 +1530,15 @@ export default function App() {
               />
               <div className="relative z-20 space-y-1.5">
                 <h2 className="text-2xl sm:text-3xl font-extrabold font-serif leading-tight">{selectedCourse.title}</h2>
-                <p className="text-xs text-slate-300">
-                  {selectedCourse.department.includes("All Programs") ? "University-Wide Course" : `${selectedCourse.department} Department`}
-                </p>
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-300">
+                  <span>{selectedCourse.department.includes("All Programs") ? "University-Wide Course" : `${selectedCourse.department} Department`}</span>
+                  {selectedCourse.lecturer && (
+                    <>
+                      <span className="text-slate-500 font-semibold">•</span>
+                      <span className="font-semibold text-amber-400">Lecturer: {selectedCourse.lecturer}</span>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -1633,7 +1642,8 @@ export default function App() {
                                       Open Document
                                     </button>
                                     <a 
-                                      href={m.fileUrl}
+                                      href={m.fileUrl.startsWith("/uploads/") && !window.location.hostname.includes("localhost") ? `http://localhost:3000${m.fileUrl}` : m.fileUrl}
+                                      download={m.fileName}
                                       target="_blank"
                                       rel="noopener noreferrer"
                                       className="p-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-white rounded-xl flex items-center justify-center transition-all cursor-pointer"
@@ -2314,6 +2324,17 @@ export default function App() {
                     />
                   </div>
 
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Course Lecturer (Credits)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Dr. Jane Doe"
+                      value={customLecturer}
+                      onChange={(e) => setCustomLecturer(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-xs focus:outline-none focus:ring-2 focus:ring-slate-950 transition-all text-slate-900 dark:text-white"
+                    />
+                  </div>
+
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">College</label>
@@ -2921,8 +2942,9 @@ export default function App() {
 
                       <div className="pt-6 border-t border-slate-100 dark:border-slate-800 text-center">
                         <a 
-                          href={activeViewerMaterial.fileUrl} 
-                          target="_blank" 
+                          href={activeViewerMaterial.fileUrl.startsWith("/uploads/") && !window.location.hostname.includes("localhost") ? `http://localhost:3000${activeViewerMaterial.fileUrl}` : activeViewerMaterial.fileUrl}
+                          download={activeViewerMaterial.fileName}
+                          target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-705 text-white text-xs font-bold rounded-xl shadow-md transition-all cursor-pointer"
                         >
@@ -2956,8 +2978,9 @@ export default function App() {
                         To view this slide deck or document, please download it to your device or open it in a new tab.
                       </p>
                       <a 
-                        href={activeViewerMaterial.fileUrl} 
-                        target="_blank" 
+                        href={activeViewerMaterial.fileUrl.startsWith("/uploads/") && !window.location.hostname.includes("localhost") ? `http://localhost:3000${activeViewerMaterial.fileUrl}` : activeViewerMaterial.fileUrl}
+                        download={activeViewerMaterial.fileName}
+                        target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-2 px-6 py-3 bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-705 text-white text-xs font-bold rounded-xl shadow-md transition-all cursor-pointer"
                       >

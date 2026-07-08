@@ -83,7 +83,8 @@ async function run() {
       department: SCIENCE_COMPUTING_PROGRAMS.join(", "),
       level: "100L",
       college: "Science and Computing",
-      units: 3
+      units: 3,
+      lecturer: "Dr. Ojo"
     },
     "MTH 102": {
       code: "MTH 102",
@@ -98,7 +99,8 @@ async function run() {
       ].join(", "),
       level: "100L",
       college: "Science and Computing",
-      units: 3
+      units: 3,
+      lecturer: "Prof. N. Nwabueze"
     },
     "PHY 104": {
       code: "PHY 104",
@@ -106,7 +108,8 @@ async function run() {
       department: SCIENCE_COMPUTING_PROGRAMS.join(", "),
       level: "100L",
       college: "Science and Computing",
-      units: 3
+      units: 3,
+      lecturer: "Dr. A. B. Alabi"
     },
     "PHY 108": {
       code: "PHY 108",
@@ -114,7 +117,8 @@ async function run() {
       department: SCIENCE_COMPUTING_PROGRAMS.join(", "),
       level: "100L",
       college: "Science and Computing",
-      units: 1
+      units: 1,
+      lecturer: "Dr. A. B. Alabi"
     },
     "GST 112": {
       code: "GST 112",
@@ -122,7 +126,8 @@ async function run() {
       department: "All Programs",
       level: "100L",
       college: "College of Arts",
-      units: 2
+      units: 2,
+      lecturer: "General Studies Faculty"
     },
     "WU 100": {
       code: "WU 100",
@@ -130,7 +135,8 @@ async function run() {
       department: "All Programs",
       level: "100L",
       college: "College of Arts",
-      units: 2
+      units: 2,
+      lecturer: "University Seminar Faculty"
     },
     "WUGST 112": {
       code: "WUGST 112",
@@ -138,7 +144,8 @@ async function run() {
       department: "All Programs",
       level: "100L",
       college: "College of Arts",
-      units: 2
+      units: 2,
+      lecturer: "Sports Development Unit"
     }
   };
 
@@ -163,19 +170,16 @@ async function run() {
   for (const code of Object.keys(targetCourses)) {
     const courseId = "course-" + code.replace(/\s+/g, "").toLowerCase();
     
-    const existing = await db.getCourseById(courseId);
+    console.log(`Syncing course metadata: ${code}...`);
+    try {
+      await db.deleteCourse(courseId);
+    } catch (_) {}
 
-    if (existing) {
-      console.log(`Course ${code} exists.`);
-      courseMap[code] = existing;
-    } else {
-      console.log(`Creating course: ${code}...`);
-      const courseObj = await db.addCourse({
-        id: courseId,
-        ...targetCourses[code]
-      });
-      courseMap[code] = courseObj;
-    }
+    const courseObj = await db.addCourse({
+      id: courseId,
+      ...targetCourses[code]
+    });
+    courseMap[code] = courseObj;
   }
 
   // Scan subfolders
@@ -260,7 +264,8 @@ async function run() {
       body: JSON.stringify({
         pin: "1234",
         courses: Object.values(courseMap),
-        materials: []
+        materials: [],
+        clearMaterials: true
       })
     });
     if (courseSyncResponse.ok) {

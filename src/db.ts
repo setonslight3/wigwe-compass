@@ -683,6 +683,7 @@ export class LocalDatabase {
         college: r.college,
         units: r.units,
         department: Array.isArray(r.programs) ? r.programs.join(", ") : (r.programs || ""),
+        lecturer: r.lecturer || "",
       }));
     }
     return this.state.courses;
@@ -697,7 +698,8 @@ export class LocalDatabase {
         units: course.units,
         level: course.level,
         college: course.college || "",
-        programs: course.department.split(",").map(p => p.trim()).filter(Boolean)
+        programs: course.department.split(",").map(p => p.trim()).filter(Boolean),
+        lecturer: course.lecturer || ""
       };
       await this.supabaseRequest("courses", "POST", undefined, payload);
       return course;
@@ -733,6 +735,7 @@ export class LocalDatabase {
         college: r.college,
         units: r.units,
         department: Array.isArray(r.programs) ? r.programs.join(", ") : (r.programs || ""),
+        lecturer: r.lecturer || "",
       };
     }
     return this.state.courses.find((c) => c.id === id);

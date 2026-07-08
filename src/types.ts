@@ -23,6 +23,7 @@ export interface Course {
   college?: string;
   units?: number;
   programs?: string[];
+  lecturer?: string;
 }
 
 export interface Material {
