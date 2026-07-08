@@ -662,7 +662,7 @@ app.post("/api/admin/import-metadata", asyncHandler(async (req, res) => {
   }
 
   // Clean up deprecated courses in Supabase that are not in the import payload
-  if (process.env.SUPABASE_URL && Array.isArray(courses)) {
+  if (process.env.SUPABASE_URL && Array.isArray(courses) && courses.length > 0) {
     const liveCourses = await db.getCourses();
     const importedIds = courses.map((c: any) => c.id);
     for (const c of liveCourses) {
