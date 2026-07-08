@@ -1295,11 +1295,8 @@ export default function App() {
                         <div className="space-y-4 flex-1 min-w-0">
                           <div className="space-y-1.5">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="bg-slate-100 dark:bg-slate-200 text-slate-900 dark:text-slate-950 text-[10px] font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-md">
+                              <span className="bg-slate-100 dark:bg-slate-200 text-slate-900 dark:text-slate-955 text-[10px] font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-md">
                                 {course.code}
-                              </span>
-                              <span className="text-[10px] font-bold text-slate-400">
-                                {course.units || 3} Units
                               </span>
                             </div>
                             <h4 className="text-lg font-bold font-serif text-slate-900 dark:text-white leading-snug truncate mt-1">
@@ -1308,11 +1305,8 @@ export default function App() {
                           </div>
                           
                           <div className="space-y-1">
-                            <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold truncate">
-                              {course.college || "General Studies"}
-                            </p>
-                            <p className="text-[10px] text-slate-400 font-medium">
-                              {course.department} • Level {course.level}
+                            <p className="text-[10px] text-slate-400 font-semibold">
+                              Level {course.level}
                             </p>
                           </div>
                         </div>
@@ -1532,12 +1526,9 @@ export default function App() {
                 className="absolute inset-0 w-full h-full object-cover opacity-55"
               />
               <div className="relative z-20 space-y-1.5">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-300 bg-white/10 px-2 py-0.5 rounded-md">
-                  {selectedCourse.college || "CORE MODULE"}
-                </span>
                 <h2 className="text-2xl sm:text-3xl font-extrabold font-serif leading-tight">{selectedCourse.title}</h2>
                 <p className="text-xs text-slate-300">
-                  {selectedCourse.department} Department • {selectedCourse.units || 3} Credit Units
+                  {selectedCourse.department.includes("All Programs") ? "University-Wide Course" : `${selectedCourse.department} Department`}
                 </p>
               </div>
             </div>
