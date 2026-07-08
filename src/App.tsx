@@ -34,9 +34,30 @@ import { User, Course, Material, Question, Progress, Tier, ChatMessage, Level, S
 
 export default function App() {
   // Navigation & User State
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(() => {
+    const saved = localStorage.getItem("compass_user");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (_) {
+        return null;
+      }
+    }
+    return null;
+  });
   const [isRegistering, setIsRegistering] = useState(false);
-  const [currentView, setCurrentView] = useState<"login" | "dashboard" | "course-detail" | "quiz" | "admin">("login");
+  const [currentView, setCurrentView] = useState<"login" | "dashboard" | "course-detail" | "quiz" | "admin">(() => {
+    const saved = localStorage.getItem("compass_user");
+    if (saved) {
+      try {
+        const user = JSON.parse(saved);
+        return user.role === "admin" ? "admin" : "dashboard";
+      } catch (_) {
+        return "login";
+      }
+    }
+    return "login";
+  });
   
   // Theme & Layout State
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
@@ -66,8 +87,30 @@ export default function App() {
   const [progressList, setProgressList] = useState<Progress[]>([]);
   
   const [selectedCollege, setSelectedCollege] = useState<string>("All");
-  const [selectedDept, setSelectedDept] = useState<string>("All");
-  const [activeBrowseLevel, setActiveBrowseLevel] = useState<"100L" | "200L" | "300L" | "400L" | "500L">("400L");
+  const [selectedDept, setSelectedDept] = useState<string>(() => {
+    const saved = localStorage.getItem("compass_user");
+    if (saved) {
+      try {
+        const user = JSON.parse(saved);
+        return user.department;
+      } catch (_) {
+        return "All";
+      }
+    }
+    return "All";
+  });
+  const [activeBrowseLevel, setActiveBrowseLevel] = useState<"100L" | "200L" | "300L" | "400L" | "500L">(() => {
+    const saved = localStorage.getItem("compass_user");
+    if (saved) {
+      try {
+        const user = JSON.parse(saved);
+        return user.level || "100L";
+      } catch (_) {
+        return "100L";
+      }
+    }
+    return "100L";
+  });
   const [selectedStatus, setSelectedStatus] = useState<string>("All");
   const [searchQuery, setSearchQuery] = useState<string>("");
 
@@ -260,6 +303,7 @@ export default function App() {
       });
       if (res.ok) {
         const user = await res.json();
+        localStorage.setItem("compass_user", JSON.stringify(user));
         setCurrentUser(user);
         setActiveBrowseLevel(user.level);
         setSelectedDept(user.department);
@@ -294,6 +338,7 @@ export default function App() {
       });
       if (res.ok) {
         const user = await res.json();
+        localStorage.setItem("compass_user", JSON.stringify(user));
         setCurrentUser(user);
         setActiveBrowseLevel(user.level);
         setSelectedDept(user.department);
@@ -306,6 +351,12 @@ export default function App() {
     } catch (e) {
       console.error("Registration failed", e);
     }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("compass_user");
+    setCurrentUser(null);
+    setCurrentView("login");
   };
 
   // Course Detail Handler
@@ -1058,10 +1109,7 @@ export default function App() {
                   {isDarkMode ? <Sun className="h-5 w-5 text-amber-400" /> : <Moon className="h-5 w-5" />}
                 </button>
                 <button 
-                  onClick={() => {
-                    setCurrentUser(null);
-                    setCurrentView("login");
-                  }}
+                  onClick={handleLogout}
                   className="p-2.5 text-slate-400 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all cursor-pointer"
                   title="Logout"
                 >
@@ -2449,10 +2497,7 @@ export default function App() {
                   Student Dashboard
                 </button>
                 <button 
-                  onClick={() => {
-                    setCurrentUser(null);
-                    setCurrentView("login");
-                  }}
+                  onClick={handleLogout}
                   className="p-2 text-slate-400 hover:text-slate-950 dark:hover:text-white"
                 >
                   Logout
